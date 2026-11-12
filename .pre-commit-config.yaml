@@ -1,0 +1,48 @@
+# =============================================================================
+# Kiểm tra code tự động mỗi lần "git commit".
+# Cài một lần sau khi clone:   pre-commit install
+# Chạy thủ công cho mọi file:  pre-commit run --all-files
+# =============================================================================
+default_install_hook_types: [pre-commit, commit-msg]
+exclude: ^(airflow/logs/|dbt/target/|dbt/dbt_packages/|dbt/logs/)
+
+repos:
+  # Kiểm tra chung
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+        args: [--fix=lf]
+      - id: check-yaml
+      - id: check-added-large-files
+        args: [--maxkb=5120]
+      - id: check-merge-conflict
+      - id: detect-private-key
+
+  # Python: tự format bằng black, kiểm tra lỗi bằng flake8
+  - repo: https://github.com/psf/black-pre-commit-mirror
+    rev: 26.10.1
+    hooks:
+      - id: black
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.4.1
+    hooks:
+      - id: flake8
+
+  # SQL (dbt models): tự sửa rồi kiểm tra bằng sqlfluff
+  - repo: https://github.com/sqlfluff/sqlfluff
+    rev: 4.4.0
+    hooks:
+      - id: sqlfluff-fix
+        files: ^dbt/models/
+      - id: sqlfluff-lint
+        files: ^dbt/models/
+
+  # Commit message phải theo Conventional Commits (feat:, fix:, docs:, ...)
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v4.4.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]

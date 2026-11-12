@@ -1,0 +1,31 @@
+# Cấu hình sqlfluff cho dbt models (SQL Server = dialect tsql)
+[sqlfluff]
+dialect = tsql
+templater = jinja
+max_line_length = 120
+# Tắt một số rule không phù hợp với dbt / dữ liệu AdventureWorks:
+#   AM04: cho phép "select *" (mẫu CTE chuẩn của dbt)
+#   AL09: cho phép đổi tên chỉ khác chữ hoa/thường (vd. Status as status)
+#   CP02: tên cột nguồn kiểu PascalCase (CustomerID) lẫn snake_case
+#   RF04: tên cột trùng từ khóa (Name, Status, Size...)
+#   ST06: không bắt buộc thứ tự cột trong select
+exclude_rules = AM04, AL09, CP02, RF04, ST06
+
+[sqlfluff:indentation]
+tab_space_size = 4
+
+[sqlfluff:templater:jinja]
+# Hiểu các hàm của dbt: ref(), source(), config(), var(), env_var()...
+apply_dbt_builtins = True
+
+[sqlfluff:rules:capitalisation.keywords]
+capitalisation_policy = lower
+
+[sqlfluff:rules:capitalisation.functions]
+extended_capitalisation_policy = lower
+
+[sqlfluff:rules:capitalisation.literals]
+capitalisation_policy = lower
+
+[sqlfluff:rules:capitalisation.types]
+extended_capitalisation_policy = lower

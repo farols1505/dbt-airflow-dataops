@@ -1,0 +1,5 @@
+[flake8]
+# Đồng bộ với black (line-length = 100 trong pyproject.toml)
+max-line-length = 100
+extend-ignore = E203, W503
+exclude = .git, __pycache__, .venv, venv, airflow/logs, dbt/target, dbt/dbt_packages

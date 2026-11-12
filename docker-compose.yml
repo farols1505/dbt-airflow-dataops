@@ -1,78 +1,112 @@
+# =============================================================================
+# Hạ tầng local của dự án DataOps (dbt + Airflow + SQL Server)
+# - Mọi mật khẩu/khóa lấy từ file .env (KHÔNG commit .env). Mẫu: .env.example
+# - Các cổng chỉ mở cho máy local (127.0.0.1), không lộ ra mạng LAN.
+# =============================================================================
+
+# Cố định tên project → tên container luôn là dbt_airflow_project-<service>-1,
+# dù thư mục dự án tên gì (DAG Airflow gọi container dbt theo tên này).
+name: dbt_airflow_project
+
+# Biến môi trường dùng chung cho 2 container Airflow
+x-airflow-env: &airflow-env
+  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:${POSTGRES_PASSWORD:?Thiếu POSTGRES_PASSWORD trong .env}@postgres/airflow
+  AIRFLOW__CORE__EXECUTOR: LocalExecutor
+  AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+  AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:?Thiếu AIRFLOW_FERNET_KEY trong .env}
+  # Airflow Variable "dbt_target" (DAG đọc để chọn môi trường dev/staging/prod)
+  AIRFLOW_VAR_DBT_TARGET: ${DBT_TARGET:-dev}
+  # Airflow Connection "mssql_default" (dùng cho các task kiểm tra dữ liệu bằng SQL)
+  AIRFLOW_CONN_MSSQL_DEFAULT: mssql://${DBT_USER}:${DBT_ENV_SECRET_PASSWORD}@sqlserver:1433/${DBT_DATABASE:-AdventureWorks2014}
+  # Webhook Discord/Slack để gửi thông báo (để trống = không gửi)
+  NOTIFY_WEBHOOK_URL: ${NOTIFY_WEBHOOK_URL:-}
+
+# Cấu hình dùng chung cho 2 container Airflow
+x-airflow-common: &airflow-common
+  build:
+    context: ./airflow
+    dockerfile: Dockerfile
+  environment: *airflow-env
+  # Cho user "airflow" trong container quyền dùng Docker socket của máy host
+  # (DAG chạy "docker exec" vào container dbt). Linux: GID nhóm docker; Win/Mac: 0
+  group_add:
+    - "${DOCKER_GID:-0}"
+  volumes:
+    - ./airflow/dags:/opt/airflow/dags
+    - ./airflow/logs:/opt/airflow/logs
+    - ./airflow/plugins:/opt/airflow/plugins
+    - ./dbt:/opt/airflow/dbt
+    - /var/run/docker.sock:/var/run/docker.sock
+  restart: unless-stopped
+  networks:
+    - dbt_airflow_network
+
 services:
   sqlserver:
     build:
       context: ./sqlserver
       dockerfile: Dockerfile
     environment:
-      - ACCEPT_EULA=Y
-      - SA_PASSWORD=YourStrong@Passw0rd
-      - MSSQL_PID=Express
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${SA_PASSWORD:?Thiếu SA_PASSWORD trong .env}
+      MSSQL_PID: Express
     ports:
-      - "1433:1433"
+      - "127.0.0.1:1433:1433"
     volumes:
       - sqlserver_data:/var/opt/mssql
+    healthcheck:
+      # $$ = để biến được đọc bên trong container, không phải lúc docker compose đọc file
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' -b -o /dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
     networks:
       - dbt_airflow_network
 
   postgres:
     image: postgres:13
     environment:
-      - POSTGRES_USER=airflow
-      - POSTGRES_PASSWORD=airflow
-      - POSTGRES_DB=airflow
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Thiếu POSTGRES_PASSWORD trong .env}
+      POSTGRES_DB: airflow
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "airflow"]
       interval: 5s
       retries: 5
+    restart: unless-stopped
     networks:
       - dbt_airflow_network
 
   airflow-webserver:
-    build:
-      context: ./airflow
-      dockerfile: Dockerfile
+    <<: *airflow-common
     depends_on:
       postgres:
         condition: service_healthy
-    environment:
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
-      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
-      - AIRFLOW__CORE__LOAD_EXAMPLES=False
-      - AIRFLOW__CORE__FERNET_KEY=46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
-    volumes:
-      - ./airflow/dags:/opt/airflow/dags
-      - ./airflow/logs:/opt/airflow/logs
-      - ./airflow/plugins:/opt/airflow/plugins
-      - ./dbt:/opt/airflow/dbt
-      - /var/run/docker.sock:/var/run/docker.sock
     ports:
-      - "8080:8080"
-    command: bash -c "airflow db init && airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password admin && airflow webserver"
-    networks:
-      - dbt_airflow_network
+      - "127.0.0.1:8080:8080"
+    command: >
+      bash -c "airflow db init &&
+      airflow users create --username admin --firstname Admin --lastname User
+      --role Admin --email admin@example.com --password ${AIRFLOW_ADMIN_PASSWORD:-admin} &&
+      airflow webserver"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 90s
 
   airflow-scheduler:
-    build:
-      context: ./airflow
-      dockerfile: Dockerfile
+    <<: *airflow-common
     depends_on:
-      - airflow-webserver
-    environment:
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
-      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
-      - AIRFLOW__CORE__LOAD_EXAMPLES=False
-      - AIRFLOW__CORE__FERNET_KEY=46BKJoQYlPPOexq0OhDZnIlNepKFf87WFwLbfzqDDho=
-    volumes:
-      - ./airflow/dags:/opt/airflow/dags
-      - ./airflow/logs:/opt/airflow/logs
-      - ./airflow/plugins:/opt/airflow/plugins
-      - ./dbt:/opt/airflow/dbt
-      - /var/run/docker.sock:/var/run/docker.sock
+      # Chờ webserver khởi tạo xong database Airflow rồi mới chạy scheduler
+      airflow-webserver:
+        condition: service_healthy
     command: airflow scheduler
-    networks:
-      - dbt_airflow_network
 
   dbt:
     build:
@@ -80,9 +114,17 @@ services:
       dockerfile: Dockerfile
     depends_on:
       - sqlserver
+    environment:
+      DBT_TARGET: ${DBT_TARGET:-dev}
+      DBT_SERVER: sqlserver
+      DBT_PORT: "1433"
+      DBT_DATABASE: ${DBT_DATABASE:-AdventureWorks2014}
+      DBT_USER: ${DBT_USER:?Thiếu DBT_USER trong .env}
+      DBT_ENV_SECRET_PASSWORD: ${DBT_ENV_SECRET_PASSWORD:?Thiếu DBT_ENV_SECRET_PASSWORD trong .env}
     volumes:
       - ./dbt:/usr/app/dbt
-    command: tail -f /dev/null  # Keep container running
+    command: tail -f /dev/null  # Giữ container chạy để Airflow "docker exec" vào
+    restart: unless-stopped
     networks:
       - dbt_airflow_network
 
@@ -92,4 +134,4 @@ volumes:
 
 networks:
   dbt_airflow_network:
-    driver: bridge 
+    driver: bridge

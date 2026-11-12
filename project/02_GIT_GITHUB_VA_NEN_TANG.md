@@ -2,11 +2,11 @@
 
 | | |
 |---|---|
-| **Ai làm** | **A — Trưởng nhóm**. Riêng [Bước 13](#bước-13--bàn-giao-cho-b-và-c) và [Quy trình làm việc hằng ngày](#quy-trình-làm-việc-hằng-ngày-cho-cả-nhóm) dành cho **cả nhóm** |
-| **Khi nào** | Ngày 1–2. **Càng sớm càng tốt**: B và C chỉ push code được sau khi xong file này |
+| **Trạng thái** | ✅ **Đã làm xong** (làm một lần cho repo). Nếu bạn đã làm theo bản cũ dành cho nhóm 3 người → làm [Bước 12](#bước-12--chuyển-repo-sang-chế-độ-làm-một-mình) để chuyển sang chế độ làm một mình |
+| **Khi nào** | Ngày 1–2 |
 | **Thời gian** | 4–6 giờ |
 | **Điều kiện** | Đã xong [`01_CHUAN_BI_MOI_TRUONG.md`](01_CHUAN_BI_MOI_TRUONG.md): 5 container chạy, `dbt run` và `dbt test` pass |
-| **Kết quả** | Repo **public** trên GitHub có nhánh `main` + `develop` được bảo vệ; không còn mật khẩu trong code; môi trường dev/staging/prod/ci khai báo sẵn; pre-commit tự kiểm tra code; B và C đã vào repo |
+| **Kết quả** | Repo **public** trên GitHub có nhánh `main` + `develop` được bảo vệ (bắt buộc Pull Request); không còn mật khẩu trong code; môi trường dev/staging/prod/ci khai báo sẵn; pre-commit tự kiểm tra code |
 
 > ⚠️ **Repo public = cả thế giới đọc được.** Trước mỗi lần push, luôn chạy `git status` và chắc chắn **không có file `.env`** trong danh sách.
 
@@ -23,12 +23,12 @@
 - [Bước 6 — Thống nhất phiên bản dbt](#bước-6--thống-nhất-phiên-bản-dbt)
 - [Bước 7 — Kiểm tra toàn bộ trên máy](#bước-7--kiểm-tra-toàn-bộ-trên-máy)
 - [Bước 8 — Công cụ kiểm tra code (pre-commit)](#bước-8--công-cụ-kiểm-tra-code-pre-commit)
-- [Bước 9 — Mẫu Pull Request và CODEOWNERS](#bước-9--mẫu-pull-request-và-codeowners)
+- [Bước 9 — Mẫu Pull Request](#bước-9--mẫu-pull-request)
 - [Bước 10 — Tạo repo GitHub và push](#bước-10--tạo-repo-github-và-push)
 - [Bước 11 — Cấu hình repo và bảo vệ nhánh](#bước-11--cấu-hình-repo-và-bảo-vệ-nhánh)
-- [Bước 12 — Bảng công việc trên GitHub (khuyến nghị)](#bước-12--bảng-công-việc-trên-github-khuyến-nghị)
-- [Bước 13 — Bàn giao cho B và C](#bước-13--bàn-giao-cho-b-và-c)
-- [Quy trình làm việc hằng ngày (cho cả nhóm)](#quy-trình-làm-việc-hằng-ngày-cho-cả-nhóm)
+- [Bước 12 — Chuyển repo sang chế độ làm một mình](#bước-12--chuyển-repo-sang-chế-độ-làm-một-mình)
+- [Bước 13 — Theo dõi công việc bằng Issues (tùy chọn)](#bước-13--theo-dõi-công-việc-bằng-issues-tùy-chọn)
+- [Quy trình làm việc hằng ngày](#quy-trình-làm-việc-hằng-ngày)
 - [Checklist hoàn thành](#checklist-hoàn-thành)
 - [Lỗi thường gặp](#lỗi-thường-gặp)
 
@@ -47,7 +47,7 @@
 | `dbt/requirements.txt`, `dbt/Dockerfile` | Sửa | Một nguồn phiên bản duy nhất: dbt-core 1.8.7 + dbt-sqlserver 1.8.7 |
 | `dbt/macros/generate_schema_name.sql` | Tạo mới | Sửa cách đặt tên schema của adapter → mỗi môi trường có schema riêng (`dev_bronze`, `prod_gold`...) |
 | `.pre-commit-config.yaml`, `.sqlfluff`, `.sqlfluffignore`, `.flake8`, `pyproject.toml` | Tạo mới | Tự động kiểm tra code Python/SQL/YAML và commit message |
-| `.github/pull_request_template.md`, `.github/CODEOWNERS` | Tạo mới | Mẫu PR; tự động gán người review theo thư mục |
+| `.github/pull_request_template.md` | Tạo mới | Mẫu nội dung cho mọi Pull Request |
 
 **Kế hoạch commit** (đúng chuẩn Conventional Commits, để giáo viên thấy lịch sử rõ ràng):
 
@@ -61,9 +61,9 @@
 | 6 | `fix(dbt): prefix layer schemas with target schema` | 7.5 |
 | 7 | `ci: add pre-commit hooks for black, flake8 and sqlfluff` | 8 |
 | 8 | `style: apply automatic formatting` | 8 |
-| 9 | `chore(github): add pull request template and CODEOWNERS` | 9 |
+| 9 | `chore(github): add pull request template` | 9 |
 
-> 📝 **Ngoại lệ duy nhất:** 9 commit này đi **thẳng vào `main`** vì repo chưa có ai khác. Từ Bước 11 trở đi, **mọi** thay đổi (kể cả của trưởng nhóm) phải qua Pull Request.
+> 📝 **Ngoại lệ duy nhất:** 9 commit này đi **thẳng vào `main`** vì repo chưa được bảo vệ. Từ Bước 11 trở đi, **mọi** thay đổi phải qua Pull Request.
 
 ---
 
@@ -79,15 +79,7 @@ pre-commit --version           # đã cài ở file 01, Bước 1.5
 python3 --version              # >= 3.9
 ```
 
-### 1.2. Lấy username GitHub của B và C
-
-Bạn cần cho [Bước 9](#bước-9--mẫu-pull-request-và-codeowners) và [Bước 11](#bước-11--cấu-hình-repo-và-bảo-vệ-nhánh). Ghi lại:
-
-```
-A (bạn): ______________     B: ______________     C: ______________
-```
-
-### 1.3. Dọn file thừa
+### 1.2. Dọn file thừa
 
 ```bash
 rm -f sqlserver/Dockerfile.bak     # bản cũ của sqlserver/Dockerfile, không dùng tới
@@ -239,7 +231,7 @@ AIRFLOW_ADMIN_PASSWORD=admin
 DOCKER_GID=0
 
 # ----- Thông báo -----
-# URL webhook Discord/Slack (C sẽ gửi riêng). Để trống = không gửi thông báo.
+# URL webhook Discord (tạo ở file 06). Để trống = không gửi thông báo.
 NOTIFY_WEBHOOK_URL=
 ```
 
@@ -268,7 +260,7 @@ Kiểm tra `.env` đã bị Git bỏ qua:
 git check-ignore -v .env        # phải in ra: .gitignore:2:.env   .env
 ```
 
-> 💡 Mỗi thành viên có `.env` **riêng** trên máy mình, giá trị có thể khác nhau (vì mỗi máy có SQL Server riêng). **Không cần** gửi file `.env` cho nhau.
+> 💡 Mỗi máy có `.env` **riêng** (vì mỗi máy có SQL Server riêng). Cài trên máy khác → tạo `.env` mới theo `.env.example`, **không** copy file `.env` qua chat/email.
 
 ### 3.3. Viết lại `dbt/profiles.yml`
 
@@ -337,7 +329,7 @@ git commit -m "refactor: read credentials from environment variables"
 | `healthcheck` cho `sqlserver` và `airflow-webserver` | Biết chính xác khi nào dịch vụ sẵn sàng; CI dùng `--wait` |
 | Scheduler chờ webserver **healthy** | Tránh scheduler chạy khi database Airflow chưa khởi tạo xong |
 | `restart: unless-stopped` | Container tự bật lại khi lỗi/khởi động lại máy |
-| Biến cho dbt (`DBT_*`) và Airflow (`AIRFLOW_VAR_DBT_TARGET`, `AIRFLOW_CONN_MSSQL_DEFAULT`, `NOTIFY_WEBHOOK_URL`) | Chuẩn bị sẵn cho C (DAG, thông báo) và B (target) → **chỉ sửa file này một lần** (quyết định **D10**) |
+| Biến cho dbt (`DBT_*`) và Airflow (`AIRFLOW_VAR_DBT_TARGET`, `AIRFLOW_CONN_MSSQL_DEFAULT`, `NOTIFY_WEBHOOK_URL`) | Chuẩn bị sẵn cho DAG (file `06`), thông báo, chọn target → các file sau **không phải sửa lại** `docker-compose.yml` (quyết định **D10**) |
 | Dùng `x-airflow-common` | 2 service Airflow dùng chung cấu hình, không lặp code |
 
 ### 4.2. Nội dung mới
@@ -613,7 +605,7 @@ git add scripts/init_sqlserver.sh
 git commit -m "feat(scripts): add idempotent SQL Server init script"
 ```
 
-> `git add` trên Linux lưu luôn quyền thực thi (`chmod +x`), nên B và C clone về là chạy được ngay.
+> `git add` trên Linux lưu luôn quyền thực thi (`chmod +x`), nên clone về máy khác (hoặc GitHub Actions) là chạy được ngay.
 
 ---
 
@@ -794,7 +786,7 @@ Mong đợi: `dev_bronze`, `dev_silver`, `dev_gold`.
 1. Mở http://localhost:8080, đăng nhập `admin` / mật khẩu `AIRFLOW_ADMIN_PASSWORD` trong `.env`.
 2. DAG `dbt_transform` đang **tắt (paused)** vì Airflow vừa khởi tạo lại. DAG đang tắt thì bấm Trigger cũng **không chạy** (lần chạy chỉ đứng ở trạng thái *queued*). Vì vậy: **gạt công tắc bên trái tên DAG sang bật**, rồi bấm ▶ **Trigger DAG**.
 3. Đợi 1–2 phút: `dbt_run` và `dbt_test` phải **🟩 xanh**. Lỗi `docker.sock` đã được sửa.
-4. **Gạt công tắc tắt DAG lại** (DAG này chạy mỗi 5 phút). C sẽ thay bằng DAG mới.
+4. **Gạt công tắc tắt DAG lại** (DAG này chạy mỗi 5 phút). File `06` sẽ thay bằng DAG mới.
 
 ✅ Nếu tất cả xanh: nền tảng hạ tầng đã xong.
 
@@ -921,7 +913,7 @@ line-length = 100
 target-version = ["py39"]   # Airflow 2.7.1 chạy Python 3.9
 ```
 
-> 💡 **Vì sao sqlfluff chỉ kiểm tra `dbt/models/`?** Thư mục `dbt/tests/generic/` (B làm ở file 04) chứa khối `{% test %}` đặc thù của dbt mà templater `jinja` không hiểu. Test vẫn được dbt kiểm tra khi chạy.
+> 💡 **Vì sao sqlfluff chỉ kiểm tra `dbt/models/`?** Thư mục `dbt/tests/generic/` (làm ở file `05`) chứa khối `{% test %}` đặc thù của dbt mà templater `jinja` không hiểu. Test vẫn được dbt kiểm tra khi chạy.
 
 ### 8.2. Commit cấu hình
 
@@ -992,7 +984,7 @@ git reset --soft HEAD~1                        # xóa commit thử vừa tạo
 
 ---
 
-## Bước 9 — Mẫu Pull Request và CODEOWNERS
+## Bước 9 — Mẫu Pull Request
 
 ### 9.1. `.github/pull_request_template.md`
 
@@ -1027,45 +1019,11 @@ Closes #
 ## Ảnh chụp / log (nếu có)
 ```
 
-### 9.2. `.github/CODEOWNERS`
-
-File này **tự động yêu cầu review** từ người phụ trách thư mục khi PR chạm vào thư mục đó (theo bảng sở hữu file ở mục 9.4 của file 00). Thay `ten-github-A/B/C` bằng username thật (giữ dấu `@`):
-
-```text
-# Ai phụ trách phần nào → tự động được yêu cầu review khi PR chạm vào.
-# Quy tắc ở DƯỚI được ưu tiên hơn quy tắc ở TRÊN.
-
-# Mặc định: trưởng nhóm
-*                               @ten-github-A
-
-# B — dbt models, tests
-/dbt/                           @ten-github-B
-/scripts/simulate_new_data.sql  @ten-github-B
-
-# C — Airflow, monitoring, tài liệu
-/airflow/                       @ten-github-C
-/tests/                         @ten-github-C
-/monitoring/                    @ten-github-C
-/docs/                          @ten-github-C
-/README.md                      @ten-github-C
-
-# A — hạ tầng, CI/CD (đặt cuối để ưu tiên)
-/.github/                       @ten-github-A
-/dbt/profiles.yml               @ten-github-A
-/dbt/macros/generate_schema_name.sql  @ten-github-A
-/dbt/Dockerfile                 @ten-github-A
-/dbt/requirements.txt           @ten-github-A
-/docker-compose*.yml            @ten-github-A
-/scripts/init_sqlserver.sh      @ten-github-A
-```
-
-> Ta **không** bật tùy chọn "bắt buộc code owner duyệt". Nếu bật, PR của B sửa `dbt/` sẽ cần chính B duyệt, mà GitHub không cho tự duyệt PR của mình. CODEOWNERS ở đây chỉ để **tự gán người review**.
-
-### 9.3. Commit
+### 9.2. Commit
 
 ```bash
 git add .github/
-git commit -m "chore(github): add pull request template and CODEOWNERS"
+git commit -m "chore(github): add pull request template"
 git log --oneline                 # phải thấy đủ 9 commit
 ```
 
@@ -1126,16 +1084,9 @@ gh repo edit \
 | Tắt Rebase merge | Bớt một lựa chọn gây nhầm lẫn |
 | Tự xóa nhánh sau khi merge | Repo gọn gàng |
 
-### 11.2. Mời B và C
+### 11.2. Bảo vệ nhánh `main` và `develop`
 
-```bash
-gh api -X PUT "repos/{owner}/{repo}/collaborators/ten-github-B" -f permission=push
-gh api -X PUT "repos/{owner}/{repo}/collaborators/ten-github-C" -f permission=push
-```
-
-(`{owner}/{repo}` để nguyên, `gh` tự điền theo repo hiện tại.) B và C sẽ nhận email mời → phải bấm **Accept**.
-
-### 11.3. Bảo vệ nhánh `main` và `develop`
+Làm một mình thì **không thể** yêu cầu "1 người duyệt", vì GitHub không cho tự duyệt Pull Request của chính mình. Cấu hình dưới đây vẫn **bắt buộc mọi thay đổi đi qua Pull Request** nhưng cần **0 người duyệt**. Ở file `03`, ta bật thêm **bắt buộc CI xanh**: CI đóng vai người review.
 
 ```bash
 for BRANCH in main develop; do
@@ -1143,10 +1094,7 @@ gh api -X PUT "repos/{owner}/{repo}/branches/$BRANCH/protection" --input - <<'EO
 {
   "required_status_checks": null,
   "enforce_admins": true,
-  "required_pull_request_reviews": {
-    "required_approving_review_count": 1,
-    "dismiss_stale_reviews": true
-  },
+  "required_pull_request_reviews": { "required_approving_review_count": 0 },
   "restrictions": null,
   "required_conversation_resolution": true,
   "allow_force_pushes": false,
@@ -1156,16 +1104,27 @@ EOF
 done
 ```
 
+(`{owner}/{repo}` để nguyên, `gh` tự điền theo repo hiện tại. Lệnh `PUT` ghi đè **toàn bộ** cấu hình cũ, nên nếu trước đó đã đặt "1 người duyệt", chạy lại lệnh này là xong.)
+
 | Quy tắc | Ý nghĩa |
 |---|---|
-| `required_approving_review_count: 1` | Mọi PR cần **1 người khác** duyệt |
-| `dismiss_stale_reviews` | Push thêm code sau khi được duyệt → phải duyệt lại |
-| `enforce_admins: true` | Áp dụng **cả cho trưởng nhóm**: không ai push thẳng được |
-| `required_conversation_resolution` | Mọi bình luận review phải được giải quyết |
+| `required_pull_request_reviews` với `0` người duyệt | **Bắt buộc** qua Pull Request, nhưng tự merge được |
+| `enforce_admins: true` | Áp dụng cả cho chủ repo: không push thẳng vào `main`/`develop` được |
+| `required_conversation_resolution` | Mọi bình luận trên PR phải được đánh dấu đã giải quyết |
 | Cấm force-push, cấm xóa nhánh | Bảo vệ lịch sử |
-| `required_status_checks: null` | **Tạm thời** chưa bắt buộc CI (chưa có CI). **File 06** sẽ bật lại, bắt buộc CI xanh |
+| `required_status_checks: null` | **Tạm thời** chưa bắt buộc CI (chưa có CI). **File `03`** sẽ bật |
 
-Kiểm tra trên web: *Settings → Branches* → thấy 2 rule cho `main` và `develop`.
+Kiểm tra cấu hình:
+
+```bash
+for b in main develop; do
+  gh api "repos/{owner}/{repo}/branches/$b/protection" \
+    --jq "\"$b: approvals=\" + (.required_pull_request_reviews.required_approving_review_count|tostring) + \", enforce_admins=\" + (.enforce_admins.enabled|tostring)"
+done
+# Mong đợi:
+# main: approvals=0, enforce_admins=true
+# develop: approvals=0, enforce_admins=true
+```
 
 Kiểm tra bằng thực tế:
 
@@ -1178,158 +1137,79 @@ git reset --hard origin/develop   # xóa commit thử
 
 ---
 
-## Bước 12 — Bảng công việc trên GitHub (khuyến nghị)
+## Bước 12 — Chuyển repo sang chế độ làm một mình
 
-Issues + Project board giúp cả nhóm biết ai đang làm gì. Đây cũng là **bằng chứng đóng góp** khi giáo viên đánh giá chéo.
+> **Chỉ cần làm nếu** bạn đã làm theo bản cũ của file này (bản dành cho nhóm 3 người), tức là repo đang có `.github/CODEOWNERS` và nhánh yêu cầu 1 người duyệt. Đây cũng là **Pull Request đầu tiên** của dự án, dùng để làm quen quy trình.
 
-### 12.1. Tạo milestone theo tuần
+### 12.1. Sửa bảo vệ nhánh
+
+Chạy khối lệnh ở [Bước 11.2](#112-bảo-vệ-nhánh-main-và-develop), rồi kiểm tra `approvals=0`.
+
+### 12.2. Tạo Pull Request dọn dẹp
+
+```bash
+git switch develop
+git pull
+git switch -c chore/solo-setup
+
+git rm .github/CODEOWNERS             # không còn ai để tự động gán review
+git add .env.example project/         # file hướng dẫn mới + chú thích .env.example đã sửa
+git status                            # KHÔNG được thấy .env
+git commit -m "chore: adapt repository for solo development"
+
+git push -u origin chore/solo-setup
+gh pr create --base develop --fill
+```
+
+Mở PR trên web (`gh pr view --web`): mẫu PR tự hiện. Đánh dấu các mục đã kiểm tra.
+
+### 12.3. Merge
+
+```bash
+gh pr merge --squash --delete-branch
+git switch develop
+git pull
+git log --oneline -3                  # commit "chore: adapt repository for solo development" đã ở develop
+```
+
+> Nếu merge bị từ chối với `Review required` → bảo vệ nhánh vẫn đang yêu cầu 1 người duyệt → làm lại 12.1.
+
+---
+
+## Bước 13 — Theo dõi công việc bằng Issues (tùy chọn)
+
+Không bắt buộc. Lợi ích: mỗi PR ghi `Closes #<số>` → issue tự đóng khi merge, tạo thành nhật ký công việc rõ ràng cho giáo viên xem.
 
 ```bash
 gh api "repos/{owner}/{repo}/milestones" -f title="Tuần 1 - MVP"
 gh api "repos/{owner}/{repo}/milestones" -f title="Tuần 2 - Đủ 100 điểm"
 gh api "repos/{owner}/{repo}/milestones" -f title="Tuần 3 - Bonus và tài liệu"
-```
 
-### 12.2. Tạo issue cho mọi đầu việc
-
-Chạy **sau khi B và C đã Accept lời mời** (nếu không, gán người sẽ lỗi). Sửa 3 dòng đầu rồi dán cả khối vào terminal:
-
-```bash
-A=ten-github-A; B=ten-github-B; C=ten-github-C
 W1="Tuần 1 - MVP"; W2="Tuần 2 - Đủ 100 điểm"; W3="Tuần 3 - Bonus và tài liệu"
-
-while IFS='|' read -r WHO MS TITLE GUIDE; do
-  gh issue create --assignee "$WHO" --milestone "$MS" --title "$TITLE" \
+while IFS='|' read -r MS TITLE GUIDE; do
+  gh issue create --assignee @me --milestone "$MS" --title "$TITLE" \
     --body "Hướng dẫn: \`project/$GUIDE\`" > /dev/null && echo "✅ $TITLE"
 done <<EOF
-$A|$W1|chore: nền tảng Git, .env, pre-commit (Phần 0)|02_GIT_GITHUB_VA_NEN_TANG.md
-$A|$W1|ci: CI workflow cho Pull Request|06_CI_PIPELINE.md
-$A|$W1|ci: kiểm tra PR (tiêu đề, kích thước file, conflict)|06_CI_PIPELINE.md
-$A|$W1|ci: deploy đơn giản khi merge develop/main|07_CD_VA_MULTI_ENV.md
-$A|$W2|ci: môi trường dev/staging/prod + duyệt production|07_CD_VA_MULTI_ENV.md
-$A|$W2|ci: pre-deploy validation + post-deploy health check|07_CD_VA_MULTI_ENV.md
-$A|$W2|ci: thông báo deploy + gắn tag prod-*|07_CD_VA_MULTI_ENV.md
-$A|$W2|ci: backup + rollback tự động khi test lỗi|08_ROLLBACK_VA_GIAM_SAT_DEPLOY.md
-$A|$W2|chore: ghép nối end-to-end cả nhóm|00_TONG_QUAN_DU_AN.md
-$A|$W3|ci: workflow rollback thủ công|08_ROLLBACK_VA_GIAM_SAT_DEPLOY.md
-$A|$W3|ci: báo cáo tỉ lệ deploy thành công|08_ROLLBACK_VA_GIAM_SAT_DEPLOY.md
-$A|$W3|docs: DEPLOYMENT_RUNBOOK + ROLLBACK + badges|08_ROLLBACK_VA_GIAM_SAT_DEPLOY.md
-$B|$W1|refactor: tách bronze 1-1 với bảng nguồn, gộp sources|03_DBT_MODELS.md
-$B|$W1|feat: source freshness + simulate_new_data.sql|04_DBT_TESTING.md
-$B|$W1|feat: silver models|03_DBT_MODELS.md
-$B|$W2|fix: sửa logic gold + thêm model gold mới|03_DBT_MODELS.md
-$B|$W2|perf: incremental/index + đo hiệu năng|03_DBT_MODELS.md
-$B|$W2|test: relationships + accepted_values|04_DBT_TESTING.md
-$B|$W2|test: custom generic tests + singular tests|04_DBT_TESTING.md
-$B|$W2|docs: mô tả mọi model và cột|03_DBT_MODELS.md
-$B|$W3|feat: exposures + lineage lên GitHub Pages|10_LINEAGE_GITHUB_PAGES.md
-$B|$W3|docs: TESTING.md + PERFORMANCE.md|04_DBT_TESTING.md
-$C|$W1|feat: DAG dbt_pipeline theo tầng + retry|05_AIRFLOW_DAG.md
-$C|$W1|feat: thông báo lỗi qua Discord|05_AIRFLOW_DAG.md
-$C|$W1|test: DAG integrity test|05_AIRFLOW_DAG.md
-$C|$W2|feat: kiểm tra chất lượng dữ liệu bằng SQL trong DAG|05_AIRFLOW_DAG.md
-$C|$W2|feat: Grafana + dashboard|09_GRAFANA_MONITORING.md
-$C|$W2|docs: ARCHITECTURE + sơ đồ kiến trúc|11_TAI_LIEU_VA_DEMO.md
-$C|$W3|docs: README + SETUP_GUIDE + TROUBLESHOOTING|11_TAI_LIEU_VA_DEMO.md
-$C|$W3|docs: kịch bản demo (DEMO_SCRIPT)|11_TAI_LIEU_VA_DEMO.md
+$W1|ci: CI, kiểm tra PR, deploy cơ bản, README tối thiểu (MVP)|03_CI_VA_DEPLOY_CO_BAN.md
+$W1|refactor: chuẩn hóa dbt models bronze/silver/gold|04_DBT_MODELS.md
+$W2|test: schema, custom, singular tests và source freshness|05_DBT_TESTING.md
+$W2|feat: DAG dbt_pipeline theo tầng, retry, thông báo|06_AIRFLOW_DAG.md
+$W2|ci: deploy dev/staging/prod, health check, thông báo|07_CD_VA_MULTI_ENV.md
+$W3|ci: backup, rollback, thống kê deploy, runbook|08_ROLLBACK_VA_GIAM_SAT_DEPLOY.md
+$W3|docs: README, kiến trúc, setup guide, kịch bản demo|09_TAI_LIEU_VA_DEMO.md
+$W3|feat: Grafana monitoring dashboard (bonus)|10_GRAFANA_MONITORING.md
+$W3|feat: lineage trên GitHub Pages (bonus)|11_LINEAGE_GITHUB_PAGES.md
 EOF
 ```
 
-Đóng luôn issue Phần 0 sau khi xong file này:
-
-```bash
-gh issue list --search "nền tảng Git" --json number --jq '.[0].number' | xargs -I{} gh issue close {} --comment "Hoàn thành theo project/02_GIT_GITHUB_VA_NEN_TANG.md"
-```
-
-### 12.3. Tạo Project board (trên web)
-
-1. Trang repo → tab **Projects** → **Link a project** → **New project** → chọn mẫu **Board** → đặt tên `DataOps Board`.
-2. Trong board: **+ Add item** → gõ `#` → chọn lần lượt các issue (hoặc *Workflows* → bật **Auto-add to project** cho repo này).
-3. Cột: `Todo` → `In Progress` → `Done`. Mỗi người tự kéo thẻ của mình.
-
 ---
 
-## Bước 13 — Bàn giao cho B và C
-
-### 13.1. Tin nhắn gửi nhóm (copy và sửa)
-
-```text
-Repo đã sẵn sàng: https://github.com/<ten-github-A>/dbt-airflow-dataops
-1. Accept lời mời trong email GitHub.
-2. Làm theo project/02_GIT_GITHUB_VA_NEN_TANG.md → Bước 13.2 (khoảng 30 phút).
-3. Xong thì gửi ảnh chụp: dbt build PASS=28 + Airflow DAG xanh.
-Từ giờ KHÔNG push thẳng develop/main, mọi thứ đi qua Pull Request.
-Mỗi người tự tạo .env trên máy mình theo .env.example, KHÔNG gửi .env cho nhau.
-```
-
-### 13.2. Việc B và C cần làm (≈ 30 phút)
-
-> Phần này dành cho **B và C**. Chạy trong terminal (Windows: terminal WSL).
-
-**1. Dừng hệ thống cũ** (dùng thư mục dự án cũ từ file 01):
-
-```bash
-cd ~/dbt_airflow_project          # thư mục cũ của bạn
-docker compose down               # KHÔNG dùng -v (giữ database AdventureWorks)
-cd ~
-mv dbt_airflow_project dbt_airflow_project_old   # giữ lại phòng khi cần, xóa sau
-```
-
-**2. Clone repo** (nhánh mặc định là `develop`):
-
-```bash
-git clone git@github.com:<ten-github-A>/dbt-airflow-dataops.git dbt_airflow_project
-cd dbt_airflow_project
-git branch --show-current         # develop
-```
-
-**3. Tạo `.env`:**
-
-```bash
-cp .env.example .env
-sed -i "s|^AIRFLOW_FERNET_KEY=.*|AIRFLOW_FERNET_KEY=$(python3 -c 'import base64,os;print(base64.urlsafe_b64encode(os.urandom(32)).decode())')|" .env
-```
-
-Mở `.env` sửa `DBT_ENV_SECRET_PASSWORD`, `POSTGRES_PASSWORD` (chữ + số, có hoa/thường/số). Giữ `SA_PASSWORD=YourStrong@Passw0rd`. Riêng **Linux**: điền `DOCKER_GID` bằng kết quả của `stat -c '%g' /var/run/docker.sock`. Windows/macOS: để `0`.
-
-**4. Làm mới Airflow, build và khởi động:**
-
-```bash
-chmod -R 777 airflow/logs                             # Linux / WSL
-docker volume rm dbt_airflow_project_postgres_data    # xóa metadata Airflow cũ (không phải database dữ liệu)
-docker compose build
-docker compose up -d
-```
-
-Đợi 2–3 phút, `docker compose ps` thấy `sqlserver` và `airflow-webserver` `(healthy)`.
-
-**5. Khởi tạo SQL Server và kiểm tra dbt:**
-
-```bash
-./scripts/init_sqlserver.sh
-docker compose exec dbt dbt deps
-docker compose exec dbt dbt build                     # PASS=28
-```
-
-**6. Kiểm tra Airflow:** http://localhost:8080 → đăng nhập `admin` / `AIRFLOW_ADMIN_PASSWORD` → **bật** DAG `dbt_transform` (gạt công tắc) → Trigger → 2 task 🟩 → **tắt** DAG lại.
-
-**7. Cài pre-commit:**
-
-```bash
-pre-commit install
-pre-commit run --all-files        # lần đầu tải công cụ; mọi hook phải Passed
-```
-
-**8.** Nếu mọi thứ OK: `rm -rf ~/dbt_airflow_project_old`. Gửi ảnh chụp cho trưởng nhóm.
-
----
-
-## Quy trình làm việc hằng ngày (cho cả nhóm)
+## Quy trình làm việc hằng ngày
 
 ```
-develop ──┬──────────────────────────────────────┬──► (A phát hành) ──► main
-          │                                      ▲
-          └─► feature/ten-viec ──► Pull Request ─┘ (1 người duyệt → Squash and merge)
+develop ──┬────────────────────────────────────────────┬──► (phát hành) ──► main
+          │                                            ▲
+          └─► feature/ten-viec ──► Pull Request ──► CI xanh ──► Squash and merge
 ```
 
 ### Bắt đầu một việc mới
@@ -1362,60 +1242,51 @@ git commit -m "refactor: split bronze models by source table"
 | `ci` / `build` | CI/CD / Docker, phiên bản |
 | `chore` | Việc lặt vặt khác |
 
-### Đưa lên GitHub và mở Pull Request
+### Đưa lên GitHub và merge
 
 ```bash
 git push -u origin feature/bronze-refactor
-gh pr create --base develop --fill          # hoặc tạo trên web
+gh pr create --base develop --fill          # tiêu đề PR cũng theo Conventional Commits
+gh pr checks --watch                        # (từ file 03) đợi CI chạy xong
+gh pr merge --squash --delete-branch        # CI xanh → tự merge
+git switch develop && git pull
 ```
 
-- **Tiêu đề PR** cũng theo Conventional Commits (vd. `refactor: split bronze models by source table`), vì khi *Squash and merge*, tiêu đề PR thành commit trên `develop`.
-- Điền mẫu PR (tự hiện), ghi `Closes #<số issue>` để issue tự đóng khi merge.
-- Người review được CODEOWNERS tự gán. Nhắn họ trong nhóm chat.
+- **Tiêu đề PR** phải đúng Conventional Commits (vd. `refactor: split bronze models by source table`), vì khi *Squash and merge*, tiêu đề PR trở thành commit trên `develop` (và từ file `03`, CI kiểm tra tiêu đề này).
+- Ghi `Closes #<số issue>` trong mô tả PR nếu dùng Issues.
+- Trước khi merge, tự đọc lại tab **Files changed** như một người review: thói quen này bắt được nhiều lỗi.
 
-### Review và merge
-
-- **Người review:** đọc thay đổi (tab *Files changed*), chạy thử nếu cần (`gh pr checkout <số PR>`), rồi **Approve** hoặc **Request changes**.
-- **Tác giả:** sau khi được duyệt → **Squash and merge** → nhánh tự xóa.
-- Sau khi merge:
-  ```bash
-  git switch develop && git pull
-  ```
-
-### Phát hành `develop → main` (chỉ A)
+### Phát hành `develop → main`
 
 ```bash
-gh pr create --base main --head develop --title "chore(release): <mô tả đợt phát hành>"
+gh pr create --base main --head develop --title "chore(release): <mô tả đợt phát hành>" --body "Phát hành các thay đổi mới nhất từ develop."
+gh pr merge --merge                          # merge commit, KHÔNG squash, KHÔNG xóa nhánh develop
 ```
 
-→ B hoặc C duyệt → A merge bằng **Create a merge commit** (không squash).
+> Dùng **merge commit** (không squash) cho phát hành để `main` và `develop` không bị lệch lịch sử.
 
 ---
 
 ## Checklist hoàn thành
 
-**Trên máy A**
-- [ ] 9 commit đúng Conventional Commits (`git log --oneline`)
-- [ ] Có macro `dbt/macros/generate_schema_name.sql`
+**Trên máy**
+- [ ] Commit đúng Conventional Commits (`git log --oneline`)
 - [ ] Không còn file CRLF (`git ls-files | xargs grep -lI $'\r' | wc -l` = 0)
 - [ ] `.env` tồn tại, bị Git bỏ qua, không có trong repo
+- [ ] Có macro `dbt/macros/generate_schema_name.sql`
 - [ ] `docker compose ps`: `sqlserver`, `airflow-webserver`, `postgres` `(healthy)`
 - [ ] `./scripts/init_sqlserver.sh` chạy 2 lần đều thành công
 - [ ] `dbt debug` hiện `schema: dev`, `UID: dbt_user`, `All checks passed!`
 - [ ] `dbt build` → `PASS=28`; có schema `dev_bronze`, `dev_silver`, `dev_gold`
-- [ ] DAG `dbt_transform` chạy 🟩 (lỗi docker.sock đã hết)
+- [ ] DAG `dbt_transform` chạy 🟩 (lỗi docker.sock đã hết), đã tắt lại
 - [ ] `pre-commit run --all-files`: mọi hook `Passed`
 
 **Trên GitHub**
 - [ ] Repo **public**, có `main` và `develop`, nhánh mặc định là `develop`
 - [ ] Squash + Merge commit bật, Rebase tắt, tự xóa nhánh sau merge
-- [ ] Bảo vệ `main` và `develop` (push thẳng bị từ chối)
-- [ ] B và C đã Accept lời mời
-- [ ] CODEOWNERS có username thật
-- [ ] *(Khuyến nghị)* Milestone + issue + Project board
-
-**Bàn giao**
-- [ ] B và C đã làm xong Bước 13.2 và gửi ảnh chụp
+- [ ] Bảo vệ `main` và `develop`: `approvals=0`, `enforce_admins=true`; push thẳng bị từ chối
+- [ ] Không còn `.github/CODEOWNERS` (đã xóa qua PR ở Bước 12, nếu từng tạo)
+- [ ] Đã merge ít nhất 1 Pull Request vào `develop`
 
 ---
 
@@ -1428,23 +1299,20 @@ gh pr create --base main --head develop --title "chore(release): <mô tả đợ
 | `Password validation failed` khi tạo login | Mật khẩu dbt quá yếu | ≥ 8 ký tự, có chữ hoa, chữ thường, số |
 | `dbt debug`: `Env var required but not provided: 'DBT_USER'` | Container dbt được tạo trước khi có `.env` | `docker compose up -d --force-recreate dbt` |
 | `dbt debug`: `Login failed for user 'dbt_user'` | Chưa chạy script, hoặc vừa đổi mật khẩu trong `.env` | `./scripts/init_sqlserver.sh` (script cập nhật mật khẩu) rồi `docker compose up -d --force-recreate dbt` |
+| Bảng dbt nằm ở schema `bronze` thay vì `dev_bronze` | Thiếu macro `generate_schema_name` | Xem Bước 7.5 |
 | `airflow-webserver` không `healthy`, log có `InvalidToken` / `Fernet` | Database Airflow cũ được mã hóa bằng khóa Fernet cũ | Làm lại Bước 7.2 (xóa volume postgres) |
 | Log webserver: `password authentication failed for user "airflow"` | Volume Postgres cũ dùng mật khẩu `airflow` | Làm lại Bước 7.2 |
 | Task Airflow vẫn lỗi `permission denied ... docker.sock` | `DOCKER_GID` sai | `stat -c '%g' /var/run/docker.sock`, sửa `.env`, `docker compose up -d` |
-| `./scripts/init_sqlserver.sh: Permission denied` | File mất quyền thực thi | `chmod +x scripts/init_sqlserver.sh` (hoặc chạy `bash scripts/init_sqlserver.sh`) |
+| `./scripts/init_sqlserver.sh: Permission denied` | File mất quyền thực thi | `chmod +x scripts/init_sqlserver.sh` (hoặc `bash scripts/init_sqlserver.sh`) |
 | pre-commit: `files were modified by this hook` | Hook đã tự sửa file | `git add -A` rồi commit lại |
 | pre-commit: `Bad commit message` | Message sai chuẩn | Viết lại dạng `feat: ...`, `fix: ...` |
 | sqlfluff báo lỗi không tự sửa được | Lỗi cần sửa tay (vd. dòng quá 120 ký tự) | Đọc mã lỗi (vd. `LT05`), sửa theo gợi ý; tra cứu: `sqlfluff rules <mã>` |
 | `git push` bị từ chối: `protected branch` | Đúng như thiết kế | Tạo nhánh `feature/...` và mở PR |
-| `gh api ... collaborators` báo `404` | Sai username, hoặc chưa ở trong thư mục repo | Kiểm tra username; chạy lệnh trong thư mục dự án |
-| `gh issue create` báo lỗi assignee | B/C chưa Accept lời mời | Đợi Accept rồi chạy lại Bước 12.2 |
+| `gh pr merge` báo `Review required` / `At least 1 approving review is required` | Bảo vệ nhánh vẫn yêu cầu 1 người duyệt | Chạy lại khối lệnh Bước 11.2 |
+| `gh pr merge` báo `Required status check ... is expected` | (Từ file `03`) CI chưa chạy xong hoặc đỏ | `gh pr checks --watch`; sửa lỗi CI rồi push lại |
 
 ---
 
 ## Tiếp theo
 
-| Ai | Làm gì |
-|---|---|
-| **A** | → `06_CI_PIPELINE.md`: dựng SQL Server trong GitHub Actions, `ci.yml`, `pr-validation.yml`, bật bắt buộc CI trong bảo vệ nhánh |
-| **B** | → `03_DBT_MODELS.md` (sau khi xong Bước 13.2) |
-| **C** | → `05_AIRFLOW_DAG.md` (sau khi xong Bước 13.2) |
+→ **`03_CI_VA_DEPLOY_CO_BAN.md`**: dựng SQL Server trong GitHub Actions, `ci.yml`, `pr-validation.yml`, `deploy.yml` cơ bản, bật bắt buộc CI, README tối thiểu → **đạt MVP (~60 điểm)**.

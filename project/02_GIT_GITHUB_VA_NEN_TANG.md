@@ -45,6 +45,7 @@
 | `docker-compose.yml` | Viết lại | Bỏ mật khẩu; cố định tên project; sửa lỗi `docker.sock`; cổng chỉ mở cho localhost; healthcheck |
 | `scripts/init_sqlserver.sh` | Tạo mới | Restore DB + tạo login dbt, chạy được nhiều lần; dùng lại trong CI |
 | `dbt/requirements.txt`, `dbt/Dockerfile` | Sửa | Một nguồn phiên bản duy nhất: dbt-core 1.8.7 + dbt-sqlserver 1.8.7 |
+| `dbt/macros/generate_schema_name.sql` | Tạo mới | Sửa cách đặt tên schema của adapter → mỗi môi trường có schema riêng (`dev_bronze`, `prod_gold`...) |
 | `.pre-commit-config.yaml`, `.sqlfluff`, `.sqlfluffignore`, `.flake8`, `pyproject.toml` | Tạo mới | Tự động kiểm tra code Python/SQL/YAML và commit message |
 | `.github/pull_request_template.md`, `.github/CODEOWNERS` | Tạo mới | Mẫu PR; tự động gán người review theo thư mục |
 
@@ -57,11 +58,12 @@
 | 3 | `fix(docker): pin project name, fix docker socket access, bind ports to localhost` | 4 |
 | 4 | `feat(scripts): add idempotent SQL Server init script` | 5 |
 | 5 | `build(dbt): pin dbt-core and dbt-sqlserver to 1.8.7` | 6 |
-| 6 | `ci: add pre-commit hooks for black, flake8 and sqlfluff` | 8 |
-| 7 | `style: apply automatic formatting` | 8 |
-| 8 | `chore(github): add pull request template and CODEOWNERS` | 9 |
+| 6 | `fix(dbt): prefix layer schemas with target schema` | 7.5 |
+| 7 | `ci: add pre-commit hooks for black, flake8 and sqlfluff` | 8 |
+| 8 | `style: apply automatic formatting` | 8 |
+| 9 | `chore(github): add pull request template and CODEOWNERS` | 9 |
 
-> 📝 **Ngoại lệ duy nhất:** 8 commit này đi **thẳng vào `main`** vì repo chưa có ai khác. Từ Bước 11 trở đi, **mọi** thay đổi (kể cả của trưởng nhóm) phải qua Pull Request.
+> 📝 **Ngoại lệ duy nhất:** 9 commit này đi **thẳng vào `main`** vì repo chưa có ai khác. Từ Bước 11 trở đi, **mọi** thay đổi (kể cả của trưởng nhóm) phải qua Pull Request.
 
 ---
 
@@ -721,10 +723,49 @@ Chạy lại lần 2 → kết quả y hệt, không lỗi (chứng minh script 
 docker compose exec dbt dbt debug
 ```
 
-Trong output phải có `schema: dev`, `user: dbt_user` và cuối cùng `All checks passed!`.
+Trong phần `Connection:` của output phải có `schema: dev`, `UID: dbt_user` (adapter SQL Server gọi tên đăng nhập là **UID**), dòng `Connection test: [OK connection ok]` và cuối cùng `All checks passed!`.
 
 ```bash
 docker compose exec dbt dbt deps
+```
+
+> `dbt deps` có thể in `Updated version available: 1.4.1` cho `dbt_utils`. Đó **không phải lỗi**, chỉ là thông báo có bản mới. Ta cố ý giữ bản `1.1.1` ghi trong `packages.yml` để mọi người dùng cùng phiên bản.
+
+#### Sửa cách đặt tên schema (bắt buộc)
+
+Adapter `dbt-sqlserver` 1.8 (kế thừa `dbt-fabric`) **ghi đè** cách đặt tên schema chuẩn của dbt: nó chỉ dùng tên tầng (`bronze`, `silver`, `gold`) và **bỏ qua** schema của target. Hậu quả: `dev`, `staging`, `prod` sẽ ghi **chung** vào một schema `bronze`. Như vậy không có môi trường riêng, và quyết định D3 cùng Bonus 4 hỏng.
+
+Sửa bằng một macro của dự án (macro trong dự án được ưu tiên hơn macro của adapter). Tạo file `dbt/macros/generate_schema_name.sql`:
+
+```sql
+{#
+    Đặt tên schema = <schema của target>_<tên tầng>, ví dụ: dev_bronze, prod_gold.
+
+    Vì sao cần file này? Adapter dbt-sqlserver 1.8 (kế thừa dbt-fabric) ghi đè cách
+    đặt tên mặc định của dbt và chỉ dùng tên tầng (bronze/silver/gold), bỏ qua target.
+    Khi đó dev, staging và prod sẽ ghi CHUNG vào một schema → không tách được môi trường.
+    Macro này khôi phục hành vi chuẩn của dbt.
+#}
+{% macro generate_schema_name(custom_schema_name, node) -%}
+    {%- set default_schema = target.schema -%}
+    {%- if custom_schema_name is none -%}
+        {{ default_schema }}
+    {%- else -%}
+        {{ default_schema }}_{{ custom_schema_name | trim }}
+    {%- endif -%}
+{%- endmacro %}
+```
+
+Commit:
+
+```bash
+git add dbt/macros/generate_schema_name.sql
+git commit -m "fix(dbt): prefix layer schemas with target schema"
+```
+
+#### Chạy toàn bộ model và test
+
+```bash
 docker compose exec dbt dbt build        # = dbt run + dbt test, chạy theo thứ tự phụ thuộc
 ```
 
@@ -746,7 +787,7 @@ Mong đợi: `dev_bronze`, `dev_silver`, `dev_gold`.
 
 > Thử nhanh target khác (không bắt buộc): `docker compose exec dbt dbt run --target staging --select path:models/bronze` → tạo schema `staging_bronze`.
 >
-> Các schema cũ `dbo_bronze`, `dbo_silver`, `dbo_gold` (từ file 01) vẫn còn và không ảnh hưởng gì. Có thể bỏ qua.
+> Các schema cũ `bronze`, `silver`, `gold` (tạo ra trước khi có macro, từ file 01) vẫn còn và không ảnh hưởng gì. Có thể bỏ qua.
 
 ### 7.6. Kiểm tra Airflow
 
@@ -904,7 +945,7 @@ Lần chạy đầu **sẽ báo `Failed`** ở một số hook kèm dòng `files
 Chạy lại lần 2:
 
 ```bash
-git add -A
+git add -u                 # chỉ các file ĐÃ được Git theo dõi (không kéo theo file mới như .github/)
 pre-commit run --all-files
 ```
 
@@ -1011,6 +1052,7 @@ File này **tự động yêu cầu review** từ người phụ trách thư m�
 # A — hạ tầng, CI/CD (đặt cuối để ưu tiên)
 /.github/                       @ten-github-A
 /dbt/profiles.yml               @ten-github-A
+/dbt/macros/generate_schema_name.sql  @ten-github-A
 /dbt/Dockerfile                 @ten-github-A
 /dbt/requirements.txt           @ten-github-A
 /docker-compose*.yml            @ten-github-A
@@ -1024,7 +1066,7 @@ File này **tự động yêu cầu review** từ người phụ trách thư m�
 ```bash
 git add .github/
 git commit -m "chore(github): add pull request template and CODEOWNERS"
-git log --oneline                 # phải thấy đủ 8 commit
+git log --oneline                 # phải thấy đủ 9 commit
 ```
 
 ---
@@ -1353,12 +1395,13 @@ gh pr create --base main --head develop --title "chore(release): <mô tả đợ
 ## Checklist hoàn thành
 
 **Trên máy A**
-- [ ] 8 commit đúng Conventional Commits (`git log --oneline`)
+- [ ] 9 commit đúng Conventional Commits (`git log --oneline`)
+- [ ] Có macro `dbt/macros/generate_schema_name.sql`
 - [ ] Không còn file CRLF (`git ls-files | xargs grep -lI $'\r' | wc -l` = 0)
 - [ ] `.env` tồn tại, bị Git bỏ qua, không có trong repo
 - [ ] `docker compose ps`: `sqlserver`, `airflow-webserver`, `postgres` `(healthy)`
 - [ ] `./scripts/init_sqlserver.sh` chạy 2 lần đều thành công
-- [ ] `dbt debug` hiện `schema: dev`, `user: dbt_user`, `All checks passed!`
+- [ ] `dbt debug` hiện `schema: dev`, `UID: dbt_user`, `All checks passed!`
 - [ ] `dbt build` → `PASS=28`; có schema `dev_bronze`, `dev_silver`, `dev_gold`
 - [ ] DAG `dbt_transform` chạy 🟩 (lỗi docker.sock đã hết)
 - [ ] `pre-commit run --all-files`: mọi hook `Passed`

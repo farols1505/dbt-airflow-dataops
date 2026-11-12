@@ -36,4 +36,3 @@ SELECT TOP 10
     ListPrice
 FROM Production.Product
 WHERE DiscontinuedDate IS NULL;
-

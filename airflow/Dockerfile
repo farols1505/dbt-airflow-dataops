@@ -45,4 +45,4 @@ COPY --chown=airflow:root dags/ /opt/airflow/dags/
 COPY --chown=airflow:root plugins/ /opt/airflow/plugins/
 
 # Copy DBT project - FIXED: Use a volume mount instead of COPY
-# The DBT directory will be mounted at runtime via docker-compose.yml 
+# The DBT directory will be mounted at runtime via docker-compose.yml

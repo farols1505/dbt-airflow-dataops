@@ -24,8 +24,8 @@ customer_sales as (
         min(s.order_date) as first_order_date,
         max(s.order_date) as last_order_date,
         sum(case when s.has_discount = 1 then 1 else 0 end) as orders_with_discount
-    from customers c
-    left join sales s
+    from customers as c
+    left join sales as s
         on c.customer_id = s.customer_id
     group by c.customer_id, c.full_name, c.territory_id
 )

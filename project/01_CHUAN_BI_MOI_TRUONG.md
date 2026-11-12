@@ -446,11 +446,13 @@ Dùng extension **SQL Server (mssql)** đã cài ở bước 1.4 (Azure Data Stu
    | Trust server certificate | ✅ Yes |
 
 3. Mở file [`hand_on.sql`](../hand_on.sql) ở thư mục gốc → chuột phải → **Execute Query**. Bạn sẽ thấy danh sách schema, bảng, khách hàng, đơn hàng, sản phẩm.
-4. Xem kết quả của dbt: dbt ghép tên schema `dbo` + tên tầng → các bảng/view nằm trong schema **`dbo_bronze`**, **`dbo_silver`**, **`dbo_gold`**:
+4. Xem kết quả của dbt: với mã nguồn gốc, các bảng/view nằm trong schema **`bronze`**, **`silver`**, **`gold`**:
 
    ```sql
-   SELECT TOP 10 * FROM dbo_gold.gld_sales_summary ORDER BY order_date DESC;
+   SELECT TOP 10 * FROM gold.gld_sales_summary ORDER BY order_date DESC;
    ```
+
+   (Sau file `02_...`, mỗi môi trường có schema riêng: `dev_bronze`, `dev_silver`, `dev_gold`...)
 
 > **B nên dành thêm thời gian ở bước này**: tìm hiểu các bảng `Sales.SalesOrderHeader`, `Sales.SalesOrderDetail`, `Sales.Customer`, `Person.Person`, `Production.Product`, `Production.ProductSubcategory`, `Production.ProductCategory` (cột nào là khóa, cột nào có NULL, giá trị `Status` gồm những gì). Đây là đầu vào cho file `03_...` và `04_...`.
 

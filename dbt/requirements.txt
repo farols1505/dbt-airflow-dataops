@@ -1,5 +1,4 @@
-dbt-core==1.7.3
+# Phiên bản dbt dùng cho TOÀN dự án (Docker local + GitHub Actions).
+# Đổi phiên bản = chỉ sửa ở đây, rồi: docker compose build dbt
+dbt-core==1.8.7
 dbt-sqlserver==1.8.7
-pyodbc==4.0.39
-python-dotenv==1.0.0
-dbt-utils==1.1.1 

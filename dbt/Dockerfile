@@ -38,10 +38,9 @@ RUN set -eux; \
 #     rm -rf /var/lib/apt/lists/*
 
 
-# Install specific version of dbt-core and related packages
-RUN pip install --no-cache-dir \
-    dbt-core==1.8.7 \
-    dbt-sqlserver==1.8.7
+# Cài dbt theo đúng phiên bản trong requirements.txt (nguồn phiên bản duy nhất)
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
 # Copy dbt project files
 COPY . .

@@ -1,0 +1,12 @@
+# Chuẩn hóa xuống dòng kiểu LF (Linux) cho mọi file văn bản.
+# Tránh lỗi "/bin/bash^M: bad interpreter" khi có thành viên dùng Windows.
+* text=auto eol=lf
+*.sh text eol=lf
+
+# File nhị phân — không đụng tới
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pdf binary
+*.bak binary

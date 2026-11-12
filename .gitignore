@@ -1,0 +1,28 @@
+# ===== Bí mật — KHÔNG BAO GIỜ commit =====
+.env
+docker-compose.override.yml
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# ===== dbt =====
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+dbt/.user.yml
+
+# ===== Airflow =====
+airflow/logs/*
+!airflow/logs/.gitkeep
+
+# ===== Khác =====
+*.log
+*.bak
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

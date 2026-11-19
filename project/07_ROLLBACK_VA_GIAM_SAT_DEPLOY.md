@@ -102,8 +102,12 @@ Tag mới nhất luôn là **phiên bản production hiện hành**, nên lần 
 Chạy được cả trên máy (cần `gh auth login`):
 
 ```bash
-python3 scripts/ci/deploy_report.py --limit 50 --output /tmp/report.md
+python3 scripts/ci/deploy_report.py --limit 50          # chỉ in ra màn hình
 ```
+
+- `--limit` nhận 1–200 (số lần chạy gần nhất mỗi workflow). `--save` ghi thêm file `deployment-report.md` (workflow dùng cờ này để tạo artifact); trên máy không cần.
+- Khi `rollback.yml` chưa có trên `develop`, script in cảnh báo `HTTP 404 ... rollback.yml` và bỏ qua phần rollback — bình thường cho tới khi PR được merge.
+- **Vì sao không có `--output <đường dẫn>`?** SonarCloud coi giá trị dòng lệnh đưa thẳng vào lệnh `gh` (rule S8705) hoặc vào đường dẫn file (S8707) là lỗ hổng bảo mật → Quality Gate đỏ. Script luôn gọi `gh` với số cố định (200) rồi cắt danh sách trong Python, và chỉ ghi vào tên file cố định.
 
 ---
 
@@ -181,6 +185,9 @@ Kết quả: job đỏ, **không có tag mới** (production vẫn là phiên b�
 
 ## Bước 7 — Diễn tập rollback thủ công
 
+> **Điều kiện:** đã xong **toàn bộ Bước 5**: PR đã merge vào `develop` **và** đã phát hành lên `main` (duyệt production). `gh workflow run` tìm workflow trên nhánh mặc định (`develop`) rồi chạy bản trên `--ref main`; thiếu ở một trong hai nơi → `HTTP 404: Not Found (.../workflows/rollback.yml)`.
+> Kiểm tra nhanh: `gh workflow list` phải có dòng **Rollback (thủ công)**.
+
 ```bash
 git fetch --tags
 git tag -l 'prod-*' --sort=-creatordate --format='%(refname:short)  %(contents:subject)'
@@ -255,7 +262,8 @@ Mở lần chạy → **Summary**: bảng tỉ lệ thành công (Deploy dev; st
 
 | Hiện tượng | Nguyên nhân | Cách sửa |
 |---|---|---|
-| `gh workflow run rollback.yml` báo `could not find any workflows named rollback.yml` | Workflow chưa có trên nhánh mặc định | Merge PR vào `develop` trước |
+| SonarCloud Quality Gate đỏ (Security Rating) ở PR này: S8705, S8707 trong `deploy_report.py`, S8233 trong `rollback.yml` | Bản cũ của script đưa `--limit`/`--output` thẳng vào lệnh/đường dẫn; `rollback.yml` cấp `contents: write` cho cả workflow | Dùng bản hiện tại: `gh` gọi với hằng số, `--save` thay `--output`; `rollback.yml` chỉ cấp quyền ghi cho job `rollback` |
+| `gh workflow run rollback.yml` báo `HTTP 404: Not Found (.../workflows/rollback.yml)` hoặc `could not find any workflows named rollback.yml` | `rollback.yml` chưa có trên `develop` (nhánh mặc định) và/hoặc `main` | Làm hết Bước 5: merge PR vào `develop`, phát hành lên `main`, duyệt production; rồi `gh workflow list` phải thấy *Rollback (thủ công)* |
 | `Workflow does not have 'workflow_dispatch' trigger` với `--ref main` | File trên `main` chưa có / chưa phát hành | Phát hành `develop → main` (Bước 5) |
 | Diễn tập Bước 6 nhưng không có bước rollback | Chưa có tag `prod-*` nào → không có baseline/backup | Phải có ít nhất 1 lần deploy production thành công trước |
 | Job `validate` của rollback đỏ: `Không tìm thấy tag` | Gõ sai tag | Xem danh sách tag (Bước 7) |

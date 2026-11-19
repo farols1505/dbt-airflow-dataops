@@ -1,0 +1,16 @@
+# Khóa phiên bản (lock) cho các gói Python mà job "lint" trong ci.yml cài bằng pip.
+# Dùng với: pip install --only-binary :all: --constraint .github/requirements/lint-constraints.txt pre-commit
+#   --only-binary :all: → chỉ cài gói đã đóng gói sẵn (wheel), không chạy script setup.py của gói
+#   --constraint        → mọi gói (kể cả phụ thuộc gián tiếp) chỉ được cài đúng phiên bản dưới đây
+# Cập nhật: đổi phiên bản ở đây (ưu tiên bản phát hành ≥ 2 tuần), commit qua Pull Request.
+cfgv==3.5.0
+distlib==0.4.4
+filelock==4.2.9
+identify==2.6.20
+nodeenv==1.12.0
+packaging==26.3
+platformdirs==4.14.5
+pre-commit==4.7.0
+python-discovery==1.9.4
+pyyaml==6.0.3
+virtualenv==21.15.5

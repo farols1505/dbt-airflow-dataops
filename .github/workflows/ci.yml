@@ -1,0 +1,155 @@
+# =============================================================================
+# CI — chạy trên MỌI Pull Request vào develop / main.
+#
+# 3 job chạy song song. Cả 3 là "required status checks" của bảo vệ nhánh
+# (PR chỉ merge được khi cả 3 xanh):
+#   lint       : black, flake8, sqlfluff + kiểm tra chung (YAML, file lớn, khóa bí mật...)
+#   dag-tests  : pytest kiểm tra DAG Airflow import được và đúng cấu trúc
+#   dbt-build  : dựng SQL Server tạm → dbt debug/compile/build → freshness → sinh docs
+# =============================================================================
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  workflow_dispatch:
+
+# PR được push thêm commit → hủy lần chạy cũ, chỉ chạy bản mới nhất
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Cài Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      # --only-binary :all: → chỉ cài gói đóng gói sẵn (wheel), không chạy setup script của gói
+      # --constraint       → khóa phiên bản pre-commit và mọi phụ thuộc (file trong repo)
+      - name: Cài pre-commit (phiên bản đã khóa, chỉ dùng wheel)
+        run: |
+          pip install --only-binary :all: --constraint .github/requirements/lint-constraints.txt pre-commit
+
+      - name: Cache môi trường của pre-commit
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ runner.os }}-${{ hashFiles('.pre-commit-config.yaml') }}
+
+      # Dùng CHÍNH cấu hình pre-commit của dự án → kết quả giống hệt khi commit ở máy local
+      - name: Python — black (format code)
+        run: pre-commit run black --all-files --show-diff-on-failure
+
+      - name: Python — flake8 (lỗi code)
+        run: pre-commit run flake8 --all-files
+
+      - name: SQL — sqlfluff (dbt models)
+        run: pre-commit run sqlfluff-lint --all-files
+
+      - name: Kiểm tra chung (YAML, file lớn, khóa bí mật, xung đột merge, xuống dòng)
+        env:
+          SKIP: black,flake8,sqlfluff-lint,sqlfluff-fix
+        run: pre-commit run --all-files --show-diff-on-failure
+
+  dag-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Chạy test bên trong image Airflow CHÍNH THỨC đúng phiên bản dự án dùng → Airflow đã cài sẵn,
+      # không phải pip install Airflow (hàng trăm gói) trên máy ảo.
+      AIRFLOW_IMAGE: apache/airflow:2.7.1-python3.11
+      CONSTRAINTS_URL: https://raw.githubusercontent.com/apache/airflow/constraints-2.7.1/constraints-3.11.txt
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Kiểm tra đã có test DAG chưa
+        id: check
+        run: |
+          if ls tests/test_*.py > /dev/null 2>&1; then
+            echo "has_tests=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_tests=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Chưa có test DAG trong thư mục tests/ (thêm ở file 05) — bỏ qua job này."
+          fi
+
+      # Trong container: cài pytest (chỉ wheel, phiên bản khóa theo constraints chính thức của Airflow)
+      # → tạo database Airflow tạm (SQLite) → chạy pytest. Mã nguồn được gắn vào ở chế độ chỉ đọc.
+      - name: pytest — kiểm tra DAG trong image Airflow 2.7.1
+        if: steps.check.outputs.has_tests == 'true'
+        run: |
+          docker run --rm \
+            -v "$PWD:/repo:ro" -w /repo \
+            -e AIRFLOW__CORE__LOAD_EXAMPLES=False \
+            -e DAG_TESTS_DAGS_FOLDER=/repo/airflow/dags \
+            -e PYTHONDONTWRITEBYTECODE=1 \
+            "$AIRFLOW_IMAGE" \
+            bash -c 'pip install --quiet --only-binary :all: --constraint "$0" pytest && airflow db migrate > /dev/null && python -m pytest -v -p no:cacheprovider' \
+            "$CONSTRAINTS_URL"
+
+  dbt-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Dựng SQL Server + dbt (target ci)
+        uses: ./.github/actions/setup-dbt-stack
+        with:
+          target: ci
+
+      - name: dbt debug — kiểm tra kết nối
+        run: docker compose exec -T dbt dbt debug
+
+      - name: dbt compile — kiểm tra mọi model biên dịch được
+        run: ./scripts/ci/dbt.sh compile compile
+
+      - name: dbt build — chạy model + test theo thứ tự phụ thuộc
+        run: ./scripts/ci/dbt.sh build build
+
+      - name: Source freshness (sau khi mô phỏng dữ liệu mới)
+        run: |
+          if [ -f dbt/macros/ops/simulate_new_data.sql ]; then
+            docker compose exec -T dbt dbt run-operation simulate_new_data
+            docker compose exec -T dbt dbt source freshness
+          else
+            echo "::notice::Chưa có macro simulate_new_data (thêm ở file 04) — bỏ qua freshness."
+          fi
+
+      - name: dbt docs generate — sinh tài liệu + lineage
+        run: docker compose exec -T dbt dbt docs generate
+
+      - name: Tóm tắt kết quả dbt
+        if: always()
+        run: python3 scripts/ci/dbt_summary.py "CI — dbt (target ci)"
+
+      - name: Upload tài liệu dbt + log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: dbt-ci-artifacts
+          path: |
+            dbt/target/index.html
+            dbt/target/manifest.json
+            dbt/target/catalog.json
+            dbt/target/sources.json
+            dbt/target/run_results_*.json
+            dbt/logs/dbt.log
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Log container khi lỗi
+        if: failure()
+        run: docker compose logs --no-color --tail 200 sqlserver dbt

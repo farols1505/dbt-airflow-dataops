@@ -1,0 +1,197 @@
+# =============================================================================
+# _deploy.yml — WORKFLOW DÙNG CHUNG (reusable) cho MỌI lần deploy.
+# Được gọi bởi: deploy.yml (merge vào develop/main) và rollback.yml (rollback thủ công).
+#
+# Các bước:
+#   0. Dựng SQL Server tạm + dbt (composite action setup-dbt-stack)
+#   1. Pre-deploy validation   : dbt debug, parse, compile
+#   2. Dựng lại bản prod cũ    : (chỉ prod) build lại tag prod-* mới nhất → có "dữ liệu trước deploy"
+#   3. Backup                  : (chỉ prod) sao lưu bảng silver + gold
+#   4. dbt run --full-refresh  : triển khai phiên bản mới
+#   5. dbt test                : kiểm tra chất lượng dữ liệu
+#   6. Post-deploy health check: mọi bảng/view đều tồn tại và có dữ liệu
+#   ↩  Lỗi ở bước 4–6 (prod)   : tự động restore từ backup (rollback dữ liệu)
+#   7. Gắn tag prod-YYYYMMDD-HHMM (chỉ prod, khi thành công) → lịch sử phiên bản
+#   8. Tóm tắt + thông báo Discord + upload log
+# =============================================================================
+name: _deploy (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: "GitHub Environment: dev | staging | production"
+        type: string
+        required: true
+      target:
+        description: "dbt target: dev | staging | prod"
+        type: string
+        required: true
+      ref:
+        description: "Commit/tag cần deploy (để trống = commit kích hoạt workflow)"
+        type: string
+        required: false
+        default: ""
+      is_rollback:
+        description: "true = đây là rollback thủ công về một tag cũ"
+        type: boolean
+        required: false
+        default: false
+      reason:
+        description: "Lý do (dùng cho rollback thủ công)"
+        type: string
+        required: false
+        default: ""
+      simulate_failure:
+        description: "Diễn tập: cố ý làm lỗi sau bước backup"
+        type: boolean
+        required: false
+        default: false
+
+jobs:
+  deploy:
+    name: Deploy → ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment:
+      name: ${{ inputs.environment }}
+    concurrency:
+      group: deploy-env-${{ inputs.environment }}
+      cancel-in-progress: false
+    env:
+      TARGET: ${{ inputs.target }}
+      DEPLOY_ENV: ${{ inputs.environment }}
+      NOTIFY_WEBHOOK_URL: ${{ secrets.NOTIFY_WEBHOOK_URL }}
+    steps:
+      - name: Checkout phiên bản cần deploy
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+          fetch-depth: 0  # cần toàn bộ tag prod-* để biết phiên bản prod đang chạy
+
+      - name: Thông tin phiên bản
+        id: version
+        run: |
+          sha=$(git rev-parse HEAD)
+          previous_tag=$(git tag -l 'prod-*' --sort=-creatordate | head -n 1)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "previous_tag=$previous_tag" >> "$GITHUB_OUTPUT"
+          {
+            echo "### 🚀 Deploy → $DEPLOY_ENV (dbt target: $TARGET)"
+            echo "- Commit deploy: \`${sha:0:7}\`"
+            echo "- Phiên bản production hiện tại: \`${previous_tag:-chưa có}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 0. Dựng SQL Server + dbt (target ${{ inputs.target }})
+        uses: ./.github/actions/setup-dbt-stack
+        with:
+          target: ${{ inputs.target }}
+        # Tên biến cố ý KHÁC tên biến của docker-compose.yml: secret chưa tạo = chuỗi rỗng, nếu đặt
+        # tên SA_PASSWORD thì docker compose sẽ ưu tiên giá trị rỗng này hơn mật khẩu trong .env.
+        env:
+          SECRET_SA_PASSWORD: ${{ secrets.SA_PASSWORD }}
+          SECRET_DBT_PASSWORD: ${{ secrets.DBT_ENV_SECRET_PASSWORD }}
+
+      - name: 1. Pre-deploy validation — kết nối, parse, compile
+        run: |
+          docker compose exec -T dbt dbt debug
+          docker compose exec -T dbt dbt parse
+          docker compose exec -T dbt dbt compile
+
+      - name: 2. Dựng lại phiên bản production đang chạy (${{ steps.version.outputs.previous_tag }})
+        id: baseline
+        if: inputs.target == 'prod' && steps.version.outputs.previous_tag != ''
+        env:
+          PREVIOUS_TAG: ${{ steps.version.outputs.previous_tag }}
+        run: ./scripts/ci/deploy_baseline.sh "$PREVIOUS_TAG"
+
+      - name: 3. Backup dữ liệu trước deploy (silver + gold)
+        id: backup
+        if: steps.baseline.outcome == 'success'
+        run: docker compose exec -T dbt dbt run-operation backup_layers
+
+      - name: 4. dbt run — triển khai phiên bản mới
+        # --full-refresh: build lại toàn bộ, kể cả model incremental → an toàn khi cấu trúc bảng thay đổi
+        run: ./scripts/ci/dbt.sh run run --full-refresh
+
+      - name: "Diễn tập: cố ý gây lỗi (simulate_failure)"
+        if: inputs.simulate_failure
+        run: |
+          echo "::error::Lỗi giả lập để diễn tập rollback tự động (simulate_failure = true)."
+          exit 1
+
+      - name: 5. dbt test — kiểm tra chất lượng dữ liệu
+        run: ./scripts/ci/dbt.sh test test
+
+      - name: 6. Post-deploy health check
+        run: docker compose exec -T dbt dbt run-operation health_check
+
+      - name: ↩️ Rollback tự động — khôi phục dữ liệu từ backup
+        id: rollback
+        if: failure() && steps.backup.outcome == 'success'
+        run: |
+          echo "::warning::Deploy lỗi → khôi phục dữ liệu silver + gold về trạng thái trước deploy."
+          docker compose exec -T dbt dbt run-operation restore_layers
+          docker compose exec -T dbt dbt run-operation health_check --args '{layers: [silver, gold]}'
+          echo "### ↩️ Đã rollback dữ liệu về trạng thái trước deploy" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 7. Gắn tag phiên bản production
+        id: tag
+        if: success() && inputs.target == 'prod'
+        env:
+          DEPLOYED_SHA: ${{ steps.version.outputs.sha }}
+          IS_ROLLBACK: ${{ inputs.is_rollback }}
+          REASON: ${{ inputs.reason }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          tag="prod-$(date -u +%Y%m%d-%H%M)"
+          if [ "$IS_ROLLBACK" = "true" ]; then
+            tag="${tag}-rollback"
+            message="Rollback production về ${DEPLOYED_SHA:0:7}. Lý do: ${REASON}"
+          else
+            message="Deploy production ${DEPLOYED_SHA:0:7} (run ${GITHUB_RUN_ID})"
+          fi
+          git tag -a "$tag" -m "$message" "$DEPLOYED_SHA"
+          git push origin "$tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "- 🏷️ Đã gắn tag: \`$tag\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 8a. Tóm tắt kết quả dbt
+        if: always()
+        run: python3 scripts/ci/dbt_summary.py "dbt — $DEPLOY_ENV"
+
+      - name: 8b. Thông báo kết quả
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+          DEPLOYED_SHA: ${{ steps.version.outputs.sha }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          ROLLED_BACK: ${{ steps.rollback.outcome == 'success' }}
+          IS_ROLLBACK: ${{ inputs.is_rollback }}
+          REASON: ${{ inputs.reason }}
+        run: |
+          python3 scripts/ci/notify.py \
+            --status "$JOB_STATUS" \
+            --environment "$DEPLOY_ENV" \
+            --sha "$DEPLOYED_SHA" \
+            --tag "$TAG" \
+            --rolled-back "$ROLLED_BACK" \
+            --is-rollback "$IS_ROLLBACK" \
+            --reason "$REASON"
+
+      - name: 8c. Upload log deploy
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: deploy-logs-${{ inputs.environment }}
+          path: |
+            dbt/target/run_results_*.json
+            dbt/target/manifest.json
+            dbt/logs/dbt.log
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Log container khi lỗi
+        if: failure()
+        run: docker compose logs --no-color --tail 200 sqlserver dbt

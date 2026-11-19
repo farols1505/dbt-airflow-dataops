@@ -1,0 +1,42 @@
+# =============================================================================
+# GIÁM SÁT pipeline bằng Grafana (Bonus 1). File riêng → KHÔNG sửa docker-compose.yml gốc.
+#
+# Luôn dùng KÈM file gốc (Grafana cần network và các biến của file gốc):
+#   docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d grafana
+# Mở: http://localhost:3000  (user: admin / mật khẩu: GRAFANA_ADMIN_PASSWORD trong .env, mặc định admin)
+#
+# Datasource và dashboard được khai báo bằng code (provisioning) trong monitoring/grafana/:
+#   - Airflow Metadata (PostgreSQL): lịch sử chạy DAG, task, lỗi
+#   - AdventureWorks (SQL Server)  : độ tươi dữ liệu, số dòng các bảng, chỉ số kinh doanh
+# =============================================================================
+name: dbt_airflow_project
+
+services:
+  grafana:
+    image: grafana/grafana:13.2.4
+    depends_on:
+      - postgres
+      - sqlserver
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/dataops-pipeline.json
+      # Các biến dưới đây được file provisioning datasource đọc (cú pháp $TEN_BIEN)
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Thiếu POSTGRES_PASSWORD trong .env}
+      DBT_USER: ${DBT_USER:?Thiếu DBT_USER trong .env}
+      DBT_ENV_SECRET_PASSWORD: ${DBT_ENV_SECRET_PASSWORD:?Thiếu DBT_ENV_SECRET_PASSWORD trong .env}
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    restart: unless-stopped
+    networks:
+      - dbt_airflow_network
+
+volumes:
+  grafana_data:

@@ -1,0 +1,11 @@
+# Nạp dashboard từ file JSON (dashboard as code): sửa file JSON → khởi động lại Grafana là cập nhật.
+apiVersion: 1
+
+providers:
+  - name: dataops
+    folder: DataOps
+    type: file
+    disableDeletion: true
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards

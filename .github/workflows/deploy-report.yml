@@ -1,0 +1,46 @@
+# =============================================================================
+# Báo cáo deployment: tỉ lệ thành công, thời gian trung bình, lịch sử phiên bản production.
+#
+# Chạy tự động 8:00 sáng thứ Hai (giờ Việt Nam) hằng tuần, hoặc chạy tay:
+#   GitHub → Actions → "Deployment Report" → Run workflow
+#   gh workflow run deploy-report.yml
+# Kết quả: trang Job Summary của lần chạy + file deployment-report.md (artifact).
+# =============================================================================
+name: Deployment Report
+
+on:
+  schedule:
+    - cron: "0 1 * * 1"  # 01:00 UTC thứ Hai = 08:00 giờ Việt Nam
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Số lần chạy gần nhất cần thống kê"
+        type: number
+        default: 100
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout (kèm toàn bộ tag prod-*)
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Tạo báo cáo
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LIMIT: ${{ inputs.limit || 100 }}
+        run: python3 scripts/ci/deploy_report.py --limit "$LIMIT" --output deployment-report.md
+
+      - name: Upload báo cáo
+        uses: actions/upload-artifact@v7
+        with:
+          name: deployment-report
+          path: deployment-report.md
+          retention-days: 90

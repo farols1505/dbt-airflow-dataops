@@ -46,6 +46,7 @@
 | 3 | `docs: add setup guide and troubleshooting` |
 | 4 | `docs: add live demo script` |
 | 5 | `docs: add requirements traceability matrix` |
+| 6 | `docs: clarify that manual rollback can restore any tag` (bổ sung `docs/ROLLBACK.md` từ file 07) |
 
 ---
 
@@ -120,6 +121,10 @@ git commit -m "docs: add live demo script"
 # 5
 git add docs/REQUIREMENTS_TRACEABILITY.md
 git commit -m "docs: add requirements traceability matrix"
+
+# 6 — làm rõ: rollback thủ công không dùng backup, quay về được tag bất kỳ
+git add docs/ROLLBACK.md project/08_TAI_LIEU_VA_DEMO.md   # + chính file hướng dẫn này (đã thêm commit 6)
+git commit -m "docs: clarify that manual rollback can restore any tag"
 
 git push -u origin docs/final-documentation
 gh pr create --base develop --title "docs: complete project documentation" \

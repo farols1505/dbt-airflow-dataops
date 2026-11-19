@@ -1,0 +1,32 @@
+# Datasource của Grafana, khai báo bằng code (tự tạo khi Grafana khởi động).
+# Mật khẩu KHÔNG ghi ở đây: Grafana thay $TEN_BIEN bằng biến môi trường của container
+# (được truyền từ .env qua docker-compose.monitoring.yml).
+apiVersion: 1
+
+datasources:
+  - name: Airflow Metadata (PostgreSQL)
+    uid: airflow-postgres
+    type: postgres
+    access: proxy
+    url: postgres:5432
+    user: airflow
+    jsonData:
+      database: airflow
+      sslmode: disable
+      postgresVersion: 1300
+    secureJsonData:
+      password: $POSTGRES_PASSWORD
+    editable: false
+
+  - name: AdventureWorks (SQL Server)
+    uid: adventureworks-mssql
+    type: mssql
+    access: proxy
+    url: sqlserver:1433
+    user: $DBT_USER
+    jsonData:
+      database: AdventureWorks2014
+      encrypt: "false"
+    secureJsonData:
+      password: $DBT_ENV_SECRET_PASSWORD
+    editable: false

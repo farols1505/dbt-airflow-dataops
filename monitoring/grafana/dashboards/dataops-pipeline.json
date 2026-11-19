@@ -1,0 +1,686 @@
+{
+  "uid": "dataops-pipeline",
+  "title": "DataOps Pipeline — dbt + Airflow",
+  "description": "Giám sát pipeline dbt/Airflow và dữ liệu AdventureWorks (file dashboard as code).",
+  "tags": [
+    "dataops",
+    "airflow",
+    "dbt"
+  ],
+  "timezone": "browser",
+  "editable": false,
+  "graphTooltip": 1,
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "1m",
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "env",
+        "label": "Môi trường",
+        "type": "custom",
+        "query": "dev,staging,prod",
+        "current": {
+          "selected": true,
+          "text": "dev",
+          "value": "dev"
+        },
+        "options": [
+          {
+            "selected": true,
+            "text": "dev",
+            "value": "dev"
+          },
+          {
+            "selected": false,
+            "text": "staging",
+            "value": "staging"
+          },
+          {
+            "selected": false,
+            "text": "prod",
+            "value": "prod"
+          }
+        ],
+        "hide": 0,
+        "multi": false,
+        "includeAll": false
+      }
+    ]
+  },
+  "annotations": {
+    "list": []
+  },
+  "links": [],
+  "panels": [
+    {
+      "id": 2,
+      "type": "row",
+      "title": "Pipeline Airflow — dbt_pipeline",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "panels": []
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Tỉ lệ chạy thành công (30 ngày)",
+      "description": "Tỉ lệ lần chạy DAG thành công trong 30 ngày gần nhất (đỏ < 80%, vàng < 95%).",
+      "datasource": {
+        "uid": "airflow-postgres"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 0,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "uid": "airflow-postgres"
+          },
+          "rawSql": "SELECT 100.0 * COUNT(*) FILTER (WHERE state = 'success') / NULLIF(COUNT(*), 0) AS success_rate\nFROM dag_run WHERE dag_id = 'dbt_pipeline' AND start_date > NOW() - INTERVAL '30 days' AND state IN ('success', 'failed')",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 80
+              },
+              {
+                "color": "green",
+                "value": 95
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "auto"
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Số lần chạy (30 ngày)",
+      "description": "",
+      "datasource": {
+        "uid": "airflow-postgres"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 6,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "uid": "airflow-postgres"
+          },
+          "rawSql": "SELECT COUNT(*) AS runs FROM dag_run WHERE dag_id = 'dbt_pipeline' AND start_date > NOW() - INTERVAL '30 days'",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "auto"
+      }
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Trạng thái lần chạy gần nhất",
+      "description": "",
+      "datasource": {
+        "uid": "airflow-postgres"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 12,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "uid": "airflow-postgres"
+          },
+          "rawSql": "SELECT state FROM dag_run WHERE dag_id = 'dbt_pipeline' ORDER BY start_date DESC NULLS LAST LIMIT 1",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "success": {
+                  "text": "Thành công",
+                  "color": "green",
+                  "index": 0
+                },
+                "failed": {
+                  "text": "Thất bại",
+                  "color": "red",
+                  "index": 1
+                },
+                "running": {
+                  "text": "Đang chạy",
+                  "color": "blue",
+                  "index": 2
+                },
+                "queued": {
+                  "text": "Đang chờ",
+                  "color": "purple",
+                  "index": 3
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "auto"
+      }
+    },
+    {
+      "id": 6,
+      "type": "stat",
+      "title": "Thời gian lần chạy gần nhất",
+      "description": "",
+      "datasource": {
+        "uid": "airflow-postgres"
+      },
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 18,
+        "y": 1
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "uid": "airflow-postgres"
+          },
+          "rawSql": "SELECT EXTRACT(EPOCH FROM (end_date - start_date)) AS seconds\nFROM dag_run WHERE dag_id = 'dbt_pipeline' AND end_date IS NOT NULL ORDER BY end_date DESC LIMIT 1",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "auto"
+      }
+    },
+    {
+      "id": 7,
+      "type": "timeseries",
+      "title": "Thời gian chạy pipeline theo thời gian",
+      "description": "",
+      "datasource": {
+        "uid": "airflow-postgres"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "uid": "airflow-postgres"
+          },
+          "rawSql": "SELECT start_date AS time, EXTRACT(EPOCH FROM (end_date - start_date)) / 60 AS \"Thời gian (phút)\"\nFROM dag_run\nWHERE dag_id = 'dbt_pipeline' AND end_date IS NOT NULL AND $__timeFilter(start_date)\nORDER BY 1",
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "m",
+          "custom": {
+            "drawStyle": "line",
+            "pointSize": 6,
+            "showPoints": "always"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "type": "barchart",
+      "title": "Thời gian trung bình theo task (giây)",
+      "description": "",
+      "datasource": {
+        "uid": "airflow-postgres"
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "uid": "airflow-postgres"
+          },
+          "rawSql": "SELECT task_id AS \"Task\", ROUND(AVG(duration)::numeric, 1) AS \"Giây\"\nFROM task_instance\nWHERE dag_id = 'dbt_pipeline' AND state = 'success' AND $__timeFilter(start_date)\nGROUP BY task_id\nORDER BY 2 DESC",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "showValue": "auto",
+        "legend": {
+          "showLegend": false
+        },
+        "xTickLabelRotation": 0
+      }
+    },
+    {
+      "id": 9,
+      "type": "table",
+      "title": "Các lần task lỗi gần đây (kể cả lỗi rồi retry thành công)",
+      "description": "Đọc bảng task_fail của Airflow: mỗi lần chạy lỗi của một task (task_instance chỉ giữ lần chạy cuối).",
+      "datasource": {
+        "uid": "airflow-postgres"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 24,
+        "x": 0,
+        "y": 14
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "uid": "airflow-postgres"
+          },
+          "rawSql": "SELECT end_date AS \"Thời điểm\", task_id AS \"Task\", run_id AS \"Run\",\n       ROUND(CAST(duration AS numeric), 1) AS \"Thời lượng (giây)\"\nFROM task_fail\nWHERE dag_id = 'dbt_pipeline'\nORDER BY end_date DESC NULLS LAST\nLIMIT 20",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      }
+    },
+    {
+      "id": 10,
+      "type": "row",
+      "title": "Dữ liệu — môi trường $env",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 21
+      },
+      "panels": []
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "Độ tươi dữ liệu nguồn (giờ)",
+      "description": "Số giờ kể từ lần cập nhật mới nhất ở Sales.SalesOrderHeader. Xanh < 24h, vàng < 48h, đỏ ≥ 48h (khớp ngưỡng source freshness).",
+      "datasource": {
+        "uid": "adventureworks-mssql"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 0,
+        "y": 22
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "uid": "adventureworks-mssql"
+          },
+          "rawSql": "SELECT DATEDIFF(hour, MAX(ModifiedDate), GETDATE()) AS hours_since_last_load\nFROM Sales.SalesOrderHeader",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 24
+              },
+              {
+                "color": "red",
+                "value": 48
+              }
+            ]
+          },
+          "mappings": []
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value",
+        "justifyMode": "center",
+        "orientation": "auto"
+      }
+    },
+    {
+      "id": 12,
+      "type": "table",
+      "title": "Số dòng các bảng silver / gold",
+      "description": "",
+      "datasource": {
+        "uid": "adventureworks-mssql"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 9,
+        "x": 6,
+        "y": 22
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "uid": "adventureworks-mssql"
+          },
+          "rawSql": "SELECT s.name AS [Schema], t.name AS [Bảng], SUM(p.rows) AS [Số dòng]\nFROM sys.tables AS t\nINNER JOIN sys.schemas AS s ON t.schema_id = s.schema_id\nINNER JOIN sys.partitions AS p ON t.object_id = p.object_id AND p.index_id IN (0, 1)\nWHERE s.name IN ('${env}_silver', '${env}_gold')\nGROUP BY s.name, t.name\nORDER BY s.name, t.name",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      }
+    },
+    {
+      "id": 13,
+      "type": "piechart",
+      "title": "Phân khúc khách hàng (RFM)",
+      "description": "",
+      "datasource": {
+        "uid": "adventureworks-mssql"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 9,
+        "x": 15,
+        "y": 22
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "uid": "adventureworks-mssql"
+          },
+          "rawSql": "SELECT customer_segment AS segment, COUNT(*) AS customers\nFROM [${env}_gold].[gld_customer_segments]\nGROUP BY customer_segment",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "values": true,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": ""
+        },
+        "pieType": "donut",
+        "displayLabels": [
+          "percent"
+        ],
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true,
+          "values": [
+            "value",
+            "percent"
+          ]
+        }
+      }
+    },
+    {
+      "id": 14,
+      "type": "barchart",
+      "title": "Doanh thu theo tháng",
+      "description": "",
+      "datasource": {
+        "uid": "adventureworks-mssql"
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 29
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "uid": "adventureworks-mssql"
+          },
+          "rawSql": "SELECT FORMAT(order_date, 'yyyy-MM') AS [Tháng], SUM(total_revenue) AS [Doanh thu]\nFROM [${env}_gold].[gld_sales_summary]\nGROUP BY FORMAT(order_date, 'yyyy-MM')\nORDER BY 1",
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "currencyUSD",
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "vertical",
+        "showValue": "never",
+        "legend": {
+          "showLegend": false
+        },
+        "xTickLabelRotation": -45,
+        "xTickLabelSpacing": 100
+      }
+    }
+  ]
+}

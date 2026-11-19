@@ -1,0 +1,60 @@
+# =============================================================================
+# Deploy — TỰ ĐỘNG triển khai khi code được merge:
+#
+#   merge vào develop  →  deploy DEV
+#   merge vào main     →  deploy STAGING  →  (người duyệt bấm Approve)  →  deploy PRODUCTION
+#
+# Mỗi môi trường là một "GitHub Environment" (dev, staging, production) với secret riêng.
+# Production có "required reviewer" → phải duyệt thủ công mới chạy (cấu hình ở file 06).
+# Toàn bộ các bước deploy nằm trong workflow dùng chung _deploy.yml.
+#
+# Chạy tay (Actions → Deploy → Run workflow) để deploy lại nhánh đang chọn, hoặc
+# bật "simulate_failure" để diễn tập rollback tự động (file 07).
+# =============================================================================
+name: Deploy
+
+on:
+  push:
+    branches: [develop, main]
+  workflow_dispatch:
+    inputs:
+      simulate_failure:
+        description: "Diễn tập: cố ý làm deploy lỗi SAU bước backup để kiểm tra rollback tự động"
+        type: boolean
+        default: false
+
+# Không chạy 2 lần deploy cùng nhánh song song (lần sau xếp hàng chờ lần trước)
+concurrency:
+  group: deploy-${{ github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write  # gắn tag prod-* sau khi deploy production thành công
+
+jobs:
+  dev:
+    if: github.ref_name == 'develop'
+    uses: ./.github/workflows/_deploy.yml
+    with:
+      environment: dev
+      target: dev
+      simulate_failure: ${{ inputs.simulate_failure || false }}
+    secrets: inherit
+
+  staging:
+    if: github.ref_name == 'main'
+    uses: ./.github/workflows/_deploy.yml
+    with:
+      environment: staging
+      target: staging
+    secrets: inherit
+
+  production:
+    needs: staging
+    if: github.ref_name == 'main'
+    uses: ./.github/workflows/_deploy.yml
+    with:
+      environment: production
+      target: prod
+      simulate_failure: ${{ inputs.simulate_failure || false }}
+    secrets: inherit

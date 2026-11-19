@@ -1,0 +1,44 @@
+# =============================================================================
+# Composite action: dựng "mini hạ tầng" SQL Server + dbt trên máy ảo GitHub Actions.
+# Dùng chung cho CI (ci.yml) và CD (_deploy.yml, docs-pages.yml) → không lặp code.
+#
+# Máy ảo GitHub KHÔNG kết nối được SQL Server trên laptop, nên mỗi lần chạy ta dựng
+# một SQL Server tạm bằng CHÍNH docker-compose.yml của dự án (quyết định D2):
+#   1. Tạo .env tạm (mật khẩu ngẫu nhiên, hoặc lấy từ GitHub Secrets nếu có)
+#   2. Build image sqlserver + dbt
+#   3. Khởi động 2 container, chờ SQL Server healthy
+#   4. Restore AdventureWorks + tạo tài khoản dbt (scripts/init_sqlserver.sh — giống hệt local)
+#   5. Cài dbt packages
+# =============================================================================
+name: "Dựng SQL Server + dbt"
+description: "Dựng SQL Server (AdventureWorks) và container dbt bằng docker compose của dự án"
+
+inputs:
+  target:
+    description: "dbt target: ci | dev | staging | prod"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Tạo file .env cho môi trường tạm
+      shell: bash
+      env:
+        DBT_TARGET_INPUT: ${{ inputs.target }}
+      run: ./scripts/ci/create_env.sh "$DBT_TARGET_INPUT"
+
+    - name: Build image SQL Server + dbt
+      shell: bash
+      run: docker compose build sqlserver dbt
+
+    - name: Khởi động SQL Server + dbt (chờ healthy)
+      shell: bash
+      run: docker compose up -d --wait --wait-timeout 300 sqlserver dbt
+
+    - name: Restore AdventureWorks + tạo tài khoản dbt
+      shell: bash
+      run: ./scripts/init_sqlserver.sh
+
+    - name: Cài dbt packages
+      shell: bash
+      run: docker compose exec -T dbt dbt deps

@@ -169,7 +169,7 @@ docker compose exec -T airflow-scheduler rm -rf /tmp/dagtests          # dọn d
 
 `DAG_TESTS_DAGS_FOLDER` chỉ cho test biết thư mục DAG trong container. Sai thư mục → test **báo lỗi ngay** (`Không thấy file DAG`), không "pass nhầm" với một DagBag rỗng.
 
-> CI cài Airflow **2.7.1** (đúng phiên bản trong container) trên Python 3.11 theo file constraints chính thức của Airflow, rồi chạy `pytest`.
+> CI chạy pytest bên trong image Airflow chính thức `apache/airflow:2.7.1-python3.11` (đúng phiên bản dự án dùng); pytest được cài với `--only-binary :all:` và khóa phiên bản theo constraints của Airflow.
 
 ---
 
@@ -239,7 +239,7 @@ gh pr create --base develop \
 gh pr checks --watch
 ```
 
-Job **`dag-tests`** giờ chạy thật: cài Airflow (~2–3 phút) → `18 passed`.
+Job **`dag-tests`** giờ chạy thật: tải image Airflow 2.7.1 (~1 phút) → `18 passed`.
 
 ```bash
 gh pr merge --squash --delete-branch
@@ -282,7 +282,7 @@ git switch develop && git pull
 | Không nhận tin Discord | Thiếu/sai `NOTIFY_WEBHOOK_URL`, chưa tạo lại container | Sửa `.env` → `docker compose up -d` → gửi thử (Bước 1.6) |
 | Gửi thử in `False` kèm `HTTP Error 403/404` | URL webhook sai hoặc webhook đã bị xóa | Tạo webhook mới |
 | Task đứng *queued* mãi | DAG đang tắt | Gạt công tắc bật |
-| CI `dag-tests` lỗi khi cài Airflow | Mạng/PyPI chậm | *Re-run failed jobs* |
+| CI `dag-tests` lỗi khi tải image hoặc cài pytest | Mạng/Docker Hub/PyPI chậm | *Re-run failed jobs* |
 
 ---
 

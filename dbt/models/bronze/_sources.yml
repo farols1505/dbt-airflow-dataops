@@ -1,0 +1,104 @@
+version: 2
+
+# =============================================================================
+# Nguồn dữ liệu: database AdventureWorks2014 trên SQL Server.
+# Freshness: mọi bảng nguồn được kiểm tra qua cột ModifiedDate.
+#   - Kỳ vọng: hệ thống nguồn được nạp (ingest) HẰNG NGÀY → dữ liệu mới nhất không cũ hơn 24 giờ.
+#   - warn_after 24 giờ: cảnh báo (pipeline vẫn chạy).
+#   - error_after 48 giờ: lỗi (đã lỡ ít nhất 1 lần nạp → dừng pipeline).
+# AdventureWorks là dữ liệu tĩnh (2011–2014) → dùng macro simulate_new_data
+# (macros/ops/simulate_new_data.sql) để mô phỏng một lần nạp dữ liệu mới.
+# =============================================================================
+
+sources:
+  - name: sales
+    description: "Schema **Sales**: đơn hàng (header + chi tiết) và khách hàng."
+    schema: Sales
+    loaded_at_field: ModifiedDate
+    freshness:
+      warn_after: {count: 24, period: hour}
+      error_after: {count: 48, period: hour}
+    meta:
+      owner: dataops
+      expected_latency: "Nạp hằng ngày; dữ liệu mới nhất không cũ hơn 24 giờ"
+    tables:
+      - name: SalesOrderHeader
+        description: "Thông tin chung của một đơn hàng: ngày đặt, ngày giao, khách hàng, trạng thái, tổng tiền."
+        columns:
+          - name: SalesOrderID
+            description: "Khóa chính của đơn hàng."
+            data_tests:
+              - not_null
+              - unique
+      - name: SalesOrderDetail
+        description: "Từng dòng sản phẩm trong một đơn hàng."
+        columns:
+          - name: SalesOrderDetailID
+            description: "Khóa chính của dòng đơn hàng."
+            data_tests:
+              - not_null
+              - unique
+      - name: Customer
+        description: "Khách hàng: cá nhân (có PersonID) hoặc cửa hàng (có StoreID)."
+        columns:
+          - name: CustomerID
+            description: "Khóa chính của khách hàng."
+            data_tests:
+              - not_null
+              - unique
+
+  - name: production
+    description: "Schema **Production**: sản phẩm và danh mục sản phẩm."
+    schema: Production
+    loaded_at_field: ModifiedDate
+    freshness:
+      warn_after: {count: 24, period: hour}
+      error_after: {count: 48, period: hour}
+    meta:
+      owner: dataops
+      expected_latency: "Nạp hằng ngày; dữ liệu mới nhất không cũ hơn 24 giờ"
+    tables:
+      - name: Product
+        description: "Danh mục sản phẩm được bán hoặc sản xuất."
+        columns:
+          - name: ProductID
+            description: "Khóa chính của sản phẩm."
+            data_tests:
+              - not_null
+              - unique
+      - name: ProductSubcategory
+        description: "Danh mục con của sản phẩm (vd. Mountain Bikes)."
+        columns:
+          - name: ProductSubcategoryID
+            description: "Khóa chính của danh mục con."
+            data_tests:
+              - not_null
+              - unique
+      - name: ProductCategory
+        description: "Danh mục lớn của sản phẩm (Bikes, Components, Clothing, Accessories)."
+        columns:
+          - name: ProductCategoryID
+            description: "Khóa chính của danh mục."
+            data_tests:
+              - not_null
+              - unique
+
+  - name: person
+    description: "Schema **Person**: thông tin cá nhân."
+    schema: Person
+    loaded_at_field: ModifiedDate
+    freshness:
+      warn_after: {count: 24, period: hour}
+      error_after: {count: 48, period: hour}
+    meta:
+      owner: dataops
+      expected_latency: "Nạp hằng ngày; dữ liệu mới nhất không cũ hơn 24 giờ"
+    tables:
+      - name: Person
+        description: "Con người trong hệ thống: khách hàng cá nhân, nhân viên, liên hệ của cửa hàng..."
+        columns:
+          - name: BusinessEntityID
+            description: "Khóa chính của người."
+            data_tests:
+              - not_null
+              - unique

@@ -16,14 +16,33 @@ clean-targets:
   - "target"
   - "dbt_packages"
 
+# Kiến trúc medallion: mỗi tầng một schema riêng theo môi trường
+# (dev_bronze, prod_gold... — xem macros/generate_schema_name.sql)
 models:
   dbt_sqlserver_project:
     bronze:
+      # Bronze = 1 view / 1 bảng nguồn, chỉ làm sạch nhẹ → view (luôn đọc dữ liệu mới nhất, không tốn dung lượng)
       +materialized: view
       +schema: bronze
+      +tags: ["bronze"]
     silver:
+      # Silver = join + logic nghiệp vụ → table (tầng gold đọc nhiều lần)
       +materialized: table
       +schema: silver
+      +tags: ["silver"]
     gold:
+      # Gold = bảng tổng hợp phục vụ báo cáo → table (dbt-sqlserver tự tạo clustered columnstore index)
       +materialized: table
       +schema: gold
+      +tags: ["gold"]
+
+data_tests:
+  dbt_sqlserver_project:
+    # Mặc định mọi test lỗi = pipeline lỗi. Test "mềm" tự đặt severity: warn.
+    +severity: error
+
+# Khi một macro của dbt_utils có bản riêng cho SQL Server trong dự án này (macros/compat/),
+# dùng bản của dự án trước. Cần cho test expression_is_true (xem macro để biết lý do).
+dispatch:
+  - macro_namespace: dbt_utils
+    search_order: ['dbt_sqlserver_project', 'dbt_utils']

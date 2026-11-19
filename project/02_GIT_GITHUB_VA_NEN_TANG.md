@@ -1247,9 +1247,8 @@ git commit -m "refactor: split bronze models by source table"
 ```bash
 git push -u origin feature/bronze-refactor
 gh pr create --base develop --fill          # tiêu đề PR cũng theo Conventional Commits
-gh pr checks --watch                        # (từ file 03) đợi CI chạy xong
-gh pr merge --squash --delete-branch        # CI xanh → tự merge
-git switch develop && git pull
+sleep 20      # GitHub cần vài giây để tạo check; chạy ngay thì gh báo "no checks reported" và thoát
+gh pr checks --watch && gh pr merge --squash --delete-branch && git switch develop && git pull   # CI xanh → tự merge
 ```
 
 - **Tiêu đề PR** phải đúng Conventional Commits (vd. `refactor: split bronze models by source table`), vì khi *Squash and merge*, tiêu đề PR trở thành commit trên `develop` (và từ file `03`, CI kiểm tra tiêu đề này).
@@ -1309,6 +1308,7 @@ gh pr merge --merge                          # merge commit, KHÔNG squash, KHÔ
 | sqlfluff báo lỗi không tự sửa được | Lỗi cần sửa tay (vd. dòng quá 120 ký tự) | Đọc mã lỗi (vd. `LT05`), sửa theo gợi ý; tra cứu: `sqlfluff rules <mã>` |
 | `git push` bị từ chối: `protected branch` | Đúng như thiết kế | Tạo nhánh `feature/...` và mở PR |
 | `gh pr merge` báo `Review required` / `At least 1 approving review is required` | Bảo vệ nhánh vẫn yêu cầu 1 người duyệt | Chạy lại khối lệnh Bước 11.2 |
+| `gh pr checks --watch` báo `no checks reported on the '...' branch` rồi thoát | Chạy ngay sau `gh pr create`/`git push`, GitHub chưa kịp tạo check (cần ~5 giây) | Đợi vài giây rồi chạy lại; khối lệnh trong hướng dẫn đã có `sleep 20` |
 | `gh pr merge` báo `Required status check ... is expected` | (Từ file `03`) CI chưa chạy xong hoặc đỏ | `gh pr checks --watch`; sửa lỗi CI rồi push lại |
 
 ---

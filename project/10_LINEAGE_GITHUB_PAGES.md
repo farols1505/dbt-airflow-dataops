@@ -137,15 +137,14 @@ git commit -m "ci: publish dbt docs and lineage to GitHub Pages"
 git push -u origin feature/lineage-pages
 gh pr create --base develop --title "feat: publish interactive data lineage to GitHub Pages" \
   --body "Exposures, sơ đồ lineage Mermaid, workflow đăng tài liệu dbt + lineage lên GitHub Pages."
-gh pr checks --watch
-gh pr merge --squash --delete-branch
-git switch develop && git pull
+sleep 20      # GitHub cần vài giây để tạo check; chạy ngay thì gh báo "no checks reported" và thoát
+gh pr checks --watch && gh pr merge --squash --delete-branch && git switch develop && git pull
 
 # Phát hành lên main → kích hoạt docs-pages.yml (và Deploy staging → production)
 gh pr create --base main --head develop --title "chore(release): data lineage on GitHub Pages" \
   --body "Phát hành exposures và trang lineage."
-gh pr checks --watch
-gh pr merge --merge
+sleep 20      # GitHub cần vài giây để tạo check; chạy ngay thì gh báo "no checks reported" và thoát
+gh pr checks --watch && gh pr merge --merge
 gh run list --workflow docs-pages.yml --limit 1
 gh run watch
 ```

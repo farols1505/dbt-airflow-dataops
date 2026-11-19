@@ -124,9 +124,8 @@ git commit -m "docs: add requirements traceability matrix"
 git push -u origin docs/final-documentation
 gh pr create --base develop --title "docs: complete project documentation" \
   --body "Kiến trúc + sơ đồ, setup guide, troubleshooting, kịch bản demo; chuyển tài liệu gốc vào docs/course."
-gh pr checks --watch
-gh pr merge --squash --delete-branch
-git switch develop && git pull
+sleep 20      # GitHub cần vài giây để tạo check; chạy ngay thì gh báo "no checks reported" và thoát
+gh pr checks --watch && gh pr merge --squash --delete-branch && git switch develop && git pull
 ```
 
 > `git mv` giữ lịch sử của file. pre-commit có thể sửa khoảng trắng cuối dòng trong tài liệu gốc → `git add` lại rồi commit lại.
@@ -140,8 +139,8 @@ Kiểm tra trên GitHub: `gh repo view --web` → README hiển thị sơ đồ 
 ```bash
 gh pr create --base main --head develop --title "chore(release): complete documentation" \
   --body "Phát hành tài liệu hoàn chỉnh."
-gh pr checks --watch
-gh pr merge --merge
+sleep 20      # GitHub cần vài giây để tạo check; chạy ngay thì gh báo "no checks reported" và thoát
+gh pr checks --watch && gh pr merge --merge
 gh run watch            # duyệt production khi tới lượt
 ```
 

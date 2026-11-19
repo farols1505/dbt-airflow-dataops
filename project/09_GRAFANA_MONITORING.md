@@ -134,9 +134,8 @@ git commit -m "docs: add monitoring guide"
 git push -u origin feature/grafana-monitoring
 gh pr create --base develop --title "feat(monitoring): add Grafana dashboard for pipeline and data" \
   --body "Grafana (file compose riêng), datasource + dashboard dạng code, tài liệu giám sát."
-gh pr checks --watch
-gh pr merge --squash --delete-branch
-git switch develop && git pull
+sleep 20      # GitHub cần vài giây để tạo check; chạy ngay thì gh báo "no checks reported" và thoát
+gh pr checks --watch && gh pr merge --squash --delete-branch && git switch develop && git pull
 ```
 
 ---

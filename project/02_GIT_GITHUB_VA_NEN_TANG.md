@@ -231,7 +231,7 @@ AIRFLOW_ADMIN_PASSWORD=admin
 DOCKER_GID=0
 
 # ----- Thông báo -----
-# URL webhook Discord (tạo ở file 06). Để trống = không gửi thông báo.
+# URL webhook Discord (tạo ở file 05). Để trống = không gửi thông báo.
 NOTIFY_WEBHOOK_URL=
 ```
 
@@ -329,7 +329,7 @@ git commit -m "refactor: read credentials from environment variables"
 | `healthcheck` cho `sqlserver` và `airflow-webserver` | Biết chính xác khi nào dịch vụ sẵn sàng; CI dùng `--wait` |
 | Scheduler chờ webserver **healthy** | Tránh scheduler chạy khi database Airflow chưa khởi tạo xong |
 | `restart: unless-stopped` | Container tự bật lại khi lỗi/khởi động lại máy |
-| Biến cho dbt (`DBT_*`) và Airflow (`AIRFLOW_VAR_DBT_TARGET`, `AIRFLOW_CONN_MSSQL_DEFAULT`, `NOTIFY_WEBHOOK_URL`) | Chuẩn bị sẵn cho DAG (file `06`), thông báo, chọn target → các file sau **không phải sửa lại** `docker-compose.yml` (quyết định **D10**) |
+| Biến cho dbt (`DBT_*`) và Airflow (`AIRFLOW_VAR_DBT_TARGET`, `AIRFLOW_CONN_MSSQL_DEFAULT`, `NOTIFY_WEBHOOK_URL`) | Chuẩn bị sẵn cho DAG (file `05`), thông báo, chọn target → các file sau **không phải sửa lại** `docker-compose.yml` (quyết định **D10**) |
 | Dùng `x-airflow-common` | 2 service Airflow dùng chung cấu hình, không lặp code |
 
 ### 4.2. Nội dung mới
@@ -505,7 +505,7 @@ Thay cho 2 lệnh thủ công ở file 01 (Bước 5 và 6). Script này:
 - **chờ** SQL Server sẵn sàng (thay vì `sleep 20` cố định);
 - chỉ **restore** khi chưa có database;
 - **tạo** login dbt nếu chưa có, hoặc **cập nhật mật khẩu** cho khớp `.env` nếu đã có;
-- chạy bao nhiêu lần cũng được → dùng lại nguyên vẹn trong GitHub Actions (file 06).
+- chạy bao nhiêu lần cũng được → dùng lại nguyên vẹn trong GitHub Actions (file 03).
 
 ### 5.1. Tạo `scripts/init_sqlserver.sh`
 
@@ -703,6 +703,7 @@ Mong đợi:
 ⏳ [2/3] Kiểm tra database AdventureWorks2014...
    ✅ Đã có sẵn, bỏ qua restore
 ⏳ [3/3] Tạo/cập nhật tài khoản dbt: dbt_user...
+Changed database context to 'AdventureWorks2014'.
    ✅ Tài khoản dbt_user sẵn sàng (quyền db_owner trên AdventureWorks2014)
 🎉 Khởi tạo SQL Server hoàn tất.
 ```
@@ -913,7 +914,7 @@ line-length = 100
 target-version = ["py39"]   # Airflow 2.7.1 chạy Python 3.9
 ```
 
-> 💡 **Vì sao sqlfluff chỉ kiểm tra `dbt/models/`?** Thư mục `dbt/tests/generic/` (làm ở file `05`) chứa khối `{% test %}` đặc thù của dbt mà templater `jinja` không hiểu. Test vẫn được dbt kiểm tra khi chạy.
+> 💡 **Vì sao sqlfluff chỉ kiểm tra `dbt/models/`?** Thư mục `dbt/tests/generic/` (làm ở file `04`) chứa khối `{% test %}` đặc thù của dbt mà templater `jinja` không hiểu. Test vẫn được dbt kiểm tra khi chạy.
 
 ### 8.2. Commit cấu hình
 
@@ -1191,14 +1192,13 @@ while IFS='|' read -r MS TITLE GUIDE; do
     --body "Hướng dẫn: \`project/$GUIDE\`" > /dev/null && echo "✅ $TITLE"
 done <<EOF
 $W1|ci: CI, kiểm tra PR, deploy cơ bản, README tối thiểu (MVP)|03_CI_VA_DEPLOY_CO_BAN.md
-$W1|refactor: chuẩn hóa dbt models bronze/silver/gold|04_DBT_MODELS.md
-$W2|test: schema, custom, singular tests và source freshness|05_DBT_TESTING.md
-$W2|feat: DAG dbt_pipeline theo tầng, retry, thông báo|06_AIRFLOW_DAG.md
-$W2|ci: deploy dev/staging/prod, health check, thông báo|07_CD_VA_MULTI_ENV.md
-$W3|ci: backup, rollback, thống kê deploy, runbook|08_ROLLBACK_VA_GIAM_SAT_DEPLOY.md
-$W3|docs: README, kiến trúc, setup guide, kịch bản demo|09_TAI_LIEU_VA_DEMO.md
-$W3|feat: Grafana monitoring dashboard (bonus)|10_GRAFANA_MONITORING.md
-$W3|feat: lineage trên GitHub Pages (bonus)|11_LINEAGE_GITHUB_PAGES.md
+$W1|refactor: chuẩn hóa dbt models, test đầy đủ, source freshness|04_DBT_MODELS_VA_TESTING.md
+$W2|feat: DAG dbt_pipeline theo tầng, retry, thông báo|05_AIRFLOW_DAG.md
+$W2|ci: môi trường dev/staging/prod, duyệt production|06_CD_VA_MULTI_ENV.md
+$W2|ci: rollback, thống kê deploy, runbook|07_ROLLBACK_VA_GIAM_SAT_DEPLOY.md
+$W3|docs: kiến trúc, setup guide, troubleshooting, kịch bản demo|08_TAI_LIEU_VA_DEMO.md
+$W3|feat: Grafana monitoring dashboard (bonus)|09_GRAFANA_MONITORING.md
+$W3|feat: lineage trên GitHub Pages (bonus)|10_LINEAGE_GITHUB_PAGES.md
 EOF
 ```
 

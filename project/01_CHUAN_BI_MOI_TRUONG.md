@@ -248,8 +248,14 @@ Script tự chờ SQL Server sẵn sàng, restore AdventureWorks (nếu chưa c�
    ✅ SQL Server đã sẵn sàng
 ⏳ [2/3] Kiểm tra database AdventureWorks2014...
    Chưa có → đang restore từ /tmp/AdventureWorks2014.bak (khoảng 30 giây)...
+Processed 24248 pages for database 'AdventureWorks2014', file 'AdventureWorks2014_Data' on file 1.
+Processed 4 pages for database 'AdventureWorks2014', file 'AdventureWorks2014_Log' on file 1.
+...                                  (nhiều dòng "running the upgrade step" — bình thường)
+Converting database 'AdventureWorks2014' from version 782 to the current version 904.
+RESTORE DATABASE successfully processed 24252 pages in 3.886 seconds (48.755 MB/sec).
    ✅ Đã restore AdventureWorks2014
 ⏳ [3/3] Tạo/cập nhật tài khoản dbt: dbt_user...
+Changed database context to 'AdventureWorks2014'.
    ✅ Tài khoản dbt_user sẵn sàng (quyền db_owner trên AdventureWorks2014)
 🎉 Khởi tạo SQL Server hoàn tất.
 ```
@@ -272,14 +278,14 @@ docker compose exec dbt dbt debug
 docker compose exec dbt dbt build        # = dbt run + dbt test theo thứ tự phụ thuộc
 ```
 
-Phần cuối output phải có `ERROR=0`. Với model gốc (trước file `04`): `Done. PASS=28 WARN=0 ERROR=0 SKIP=0 TOTAL=28`. Con số này tăng dần khi bạn thêm model/test ở file `04`, `05`.
+Phần cuối output phải có `ERROR=0`. Với model gốc (trước file `04`): `Done. PASS=28 WARN=0 ERROR=0 SKIP=0 TOTAL=28`. Sau file `04` (14 model + 143 test): `PASS=157`.
 
 ---
 
 ## Bước 8 — Kiểm tra Airflow
 
 1. Mở **http://localhost:8080**, đăng nhập `admin` / mật khẩu `AIRFLOW_ADMIN_PASSWORD` trong `.env`.
-2. Trang **DAGs** phải hiện DAG (trước file `06`: `dbt_transform`; sau file `06`: `dbt_pipeline`). Có thông báo đỏ *"Broken DAG"* → bấm vào để xem lỗi.
+2. Trang **DAGs** phải hiện DAG (trước file `05`: `dbt_transform`; sau file `05`: `dbt_pipeline`). Có thông báo đỏ *"Broken DAG"* → bấm vào để xem lỗi.
 3. DAG mới tạo luôn ở trạng thái **tắt (paused)**, và DAG tắt thì Trigger sẽ không chạy. → **Gạt công tắc bên trái tên DAG sang bật**, rồi bấm ▶ **Trigger DAG**.
 4. Bấm tên DAG → tab **Grid** → đợi 1–2 phút: mọi ô 🟩 xanh. Ô 🟥/🟧 → bấm vào → **Logs**.
 5. DAG gốc `dbt_transform` chạy **mỗi 5 phút** → kiểm tra xong thì **tắt lại**.
@@ -375,7 +381,7 @@ pre-commit run --all-files        # lần đầu tải công cụ 2–5 phút; m
 | `./scripts/init_sqlserver.sh: Permission denied` | Mất quyền thực thi | `bash scripts/init_sqlserver.sh` |
 | Muốn làm lại từ đầu | | `docker compose down -v` → `docker compose build --no-cache` → Bước 5 |
 
-Gặp lỗi mới → ghi lại (hiện tượng, nguyên nhân, cách sửa) để đưa vào `docs/TROUBLESHOOTING.md` ở file `09`.
+Gặp lỗi mới → ghi lại (hiện tượng, nguyên nhân, cách sửa) để đưa vào `docs/TROUBLESHOOTING.md` (file `08`).
 
 ---
 

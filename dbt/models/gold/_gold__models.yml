@@ -1,0 +1,203 @@
+version: 2
+
+# Tầng GOLD: bảng tổng hợp sẵn sàng cho báo cáo / dashboard. Materialized: table.
+
+models:
+  - name: gld_sales_summary
+    description: "Doanh số theo ngày: số đơn, số khách, doanh thu, giảm giá, phân theo kênh bán."
+    data_tests:
+      - row_count_greater_than:
+          min_rows: 100
+      - dbt_utils.expression_is_true:
+          expression: "online_orders + offline_orders = total_orders"
+    columns:
+      - name: order_date
+        description: "Ngày (khóa chính)."
+        data_tests:
+          - not_null
+          - unique
+      - name: total_orders
+        description: "Số đơn hàng trong ngày."
+        data_tests:
+          - positive_value
+      - name: unique_customers
+        description: "Số khách hàng khác nhau đặt hàng trong ngày."
+      - name: total_items_sold
+        description: "Tổng số lượng sản phẩm bán ra."
+      - name: total_revenue
+        description: "Tổng doanh thu (sau giảm giá)."
+        data_tests:
+          - not_null
+          - positive_value
+      - name: total_discount
+        description: "Tổng tiền giảm giá."
+      - name: online_orders
+        description: "Số đơn đặt online (đếm theo đơn, không theo dòng)."
+      - name: offline_orders
+        description: "Số đơn đặt qua nhân viên bán hàng."
+      - name: discounted_revenue
+        description: "Doanh thu từ các dòng có giảm giá."
+      - name: avg_order_value
+        description: "Giá trị trung bình một đơn = total_revenue / total_orders."
+
+  - name: gld_customer_metrics
+    description: "Chỉ số theo khách hàng (gồm cả khách chưa mua): số đơn, doanh thu, giá trị đơn trung bình, lần mua đầu/cuối."
+    data_tests:
+      - row_count_greater_than:
+          min_rows: 100
+    columns:
+      - name: customer_id
+        description: "Khách hàng (khóa chính)."
+        data_tests:
+          - not_null
+          - unique
+          - relationships:
+              to: ref('slvr_customers')
+              field: customer_id
+      - name: full_name
+        description: "Tên hiển thị."
+      - name: customer_type
+        description: "Individual / Store."
+        data_tests:
+          - accepted_values:
+              values: ["Individual", "Store"]
+      - name: territory_id
+        description: "Vùng bán hàng."
+      - name: has_ordered
+        description: "1 = đã từng mua hàng, 0 = chưa mua."
+        data_tests:
+          - accepted_values:
+              values: [0, 1]
+              quote: false
+      - name: total_orders
+        description: "Tổng số đơn."
+        data_tests:
+          - positive_value:
+              allow_zero: true
+      - name: total_revenue
+        description: "Tổng doanh thu từ khách."
+        data_tests:
+          - positive_value:
+              allow_zero: true
+      - name: avg_order_value
+        description: "Giá trị trung bình một ĐƠN = total_revenue / total_orders (0 nếu chưa mua)."
+      - name: total_items_purchased
+        description: "Tổng số lượng sản phẩm đã mua."
+      - name: orders_with_discount
+        description: "Số đơn có ít nhất một dòng được giảm giá."
+      - name: first_order_date
+        description: "Ngày mua đầu tiên."
+      - name: last_order_date
+        description: "Ngày mua gần nhất."
+        data_tests:
+          - date_not_before:
+              compare_column: first_order_date
+      - name: days_since_last_order
+        description: "Số ngày từ lần mua gần nhất tới ngày đặt hàng mới nhất của bộ dữ liệu."
+        data_tests:
+          - positive_value:
+              allow_zero: true
+
+  - name: gld_product_performance
+    description: "Hiệu quả kinh doanh theo sản phẩm (gồm cả sản phẩm chưa bán): số lượng, doanh thu, lợi nhuận, biên lợi nhuận."
+    data_tests:
+      - row_count_greater_than:
+          min_rows: 100
+    columns:
+      - name: product_id
+        description: "Sản phẩm (khóa chính)."
+        data_tests:
+          - not_null
+          - unique
+          - relationships:
+              to: ref('slvr_products')
+              field: product_id
+      - name: product_name
+        description: "Tên sản phẩm."
+      - name: category_name
+        description: "Danh mục lớn."
+      - name: subcategory_name
+        description: "Danh mục con."
+      - name: color
+        description: "Màu sắc."
+      - name: price_tier
+        description: "Phân khúc giá."
+      - name: is_active
+        description: "1 = đang bán."
+      - name: list_price
+        description: "Giá niêm yết."
+      - name: standard_cost
+        description: "Giá vốn chuẩn."
+      - name: total_orders
+        description: "Số đơn có sản phẩm này."
+      - name: total_quantity_sold
+        description: "Tổng số lượng đã bán."
+        data_tests:
+          - positive_value:
+              allow_zero: true
+      - name: total_revenue
+        description: "Tổng doanh thu."
+        data_tests:
+          - positive_value:
+              allow_zero: true
+      - name: avg_selling_price
+        description: "Đơn giá bán trung bình."
+      - name: total_profit
+        description: "Lợi nhuận = doanh thu − số lượng × giá vốn chuẩn."
+      - name: profit_margin_pct
+        description: "Biên lợi nhuận (%) = total_profit / total_revenue × 100. NULL nếu chưa có doanh thu."
+        data_tests:
+          - dbt_utils.accepted_range:
+              max_value: 100
+              inclusive: true
+
+  - name: gld_customer_segments
+    description: "{{ doc('rfm_model') }}"
+    data_tests:
+      - row_count_greater_than:
+          min_rows: 100
+    columns:
+      - name: customer_id
+        description: "Khách hàng (khóa chính)."
+        data_tests:
+          - not_null
+          - unique
+          - relationships:
+              to: ref('gld_customer_metrics')
+              field: customer_id
+      - name: full_name
+        description: "Tên hiển thị."
+      - name: customer_type
+        description: "Individual / Store."
+      - name: recency_days
+        description: "R — số ngày kể từ lần mua gần nhất."
+      - name: frequency
+        description: "F — số đơn đã mua."
+      - name: monetary
+        description: "M — tổng chi tiêu."
+      - name: r_score
+        description: "Điểm R (1 = mua lâu nhất .. 4 = mua gần nhất)."
+        data_tests:
+          - accepted_values:
+              values: [1, 2, 3, 4]
+              quote: false
+      - name: f_score
+        description: "Điểm F (1 = ít đơn nhất .. 4 = nhiều đơn nhất)."
+        data_tests:
+          - accepted_values:
+              values: [1, 2, 3, 4]
+              quote: false
+      - name: m_score
+        description: "Điểm M (1 = chi tiêu ít nhất .. 4 = nhiều nhất)."
+        data_tests:
+          - accepted_values:
+              values: [1, 2, 3, 4]
+              quote: false
+      - name: rfm_code
+        description: "Mã RFM ghép 3 điểm, vd. '444' = khách tốt nhất."
+      - name: customer_segment
+        description: "Phân khúc khách hàng suy ra từ điểm RFM."
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ["Champions", "Loyal", "Promising", "Needs Attention", "At Risk", "Hibernating"]

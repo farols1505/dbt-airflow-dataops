@@ -473,6 +473,7 @@ git tag -l 'prod-*'         # vd. prod-20261114-0930
 | `dbt-build` đỏ ở `dbt build` | Model/test lỗi | Đọc **Summary** (bảng chi tiết lỗi) hoặc artifact `dbt.log` |
 | PR báo `Required status check "lint" is expected` mãi | Tên check ở Bước 8 không khớp tên job | Chạy lại lệnh Bước 8 với tên đúng |
 | Check **SonarCloud Code Analysis** đỏ | Quality Gate của SonarCloud không đạt (thường là Security Rating) | Bước 7.6; check này không chặn merge |
+| Deploy đỏ ở bước *Build image SQL Server + dbt*: `required variable SA_PASSWORD is missing a value` | (Bản cũ của `_deploy.yml`) secret chưa tạo = chuỗi rỗng, docker compose ưu tiên biến môi trường rỗng hơn `.env` | Đã sửa: workflow truyền secret qua tên `SECRET_SA_PASSWORD` / `SECRET_DBT_PASSWORD`; merge bản sửa rồi deploy lại |
 | Deploy production đỏ ở bước 7 (tag) với `Permission denied` | Workflow thiếu quyền ghi | Kiểm tra `permissions: contents: write` trong `deploy.yml`; *Settings → Actions → General → Workflow permissions* |
 | `gh pr merge --merge` báo merge commit không được phép | Repo tắt merge commit | `gh repo edit --enable-merge-commit` (file 02, Bước 11.1) |
 

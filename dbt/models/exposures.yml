@@ -1,0 +1,43 @@
+version: 2
+
+# Exposures = "người dùng cuối" của dữ liệu (dashboard, báo cáo, phân tích...).
+# Khai báo ở đây để lineage graph đi tới TẬN NƠI DÙNG dữ liệu, và biết khi sửa model nào
+# thì dashboard/báo cáo nào bị ảnh hưởng.
+
+exposures:
+  - name: grafana_dataops_dashboard
+    label: "Grafana — DataOps Pipeline"
+    type: dashboard
+    maturity: medium
+    url: http://localhost:3000/d/dataops-pipeline
+    description: >
+      Dashboard giám sát pipeline (file 09): lịch sử chạy DAG Airflow, số dòng các bảng,
+      doanh thu theo tháng, phân bố phân khúc khách hàng.
+    depends_on:
+      - ref('gld_sales_summary')
+      - ref('gld_customer_segments')
+    owner:
+      name: farols1505
+
+  - name: customer_segmentation_analysis
+    label: "Phân tích phân khúc khách hàng (RFM)"
+    type: analysis
+    maturity: medium
+    description: >
+      Phân tích nhóm khách hàng theo RFM để lên chiến dịch chăm sóc: giữ chân nhóm Champions/Loyal,
+      kích hoạt lại nhóm At Risk/Hibernating.
+    depends_on:
+      - ref('gld_customer_segments')
+      - ref('gld_customer_metrics')
+    owner:
+      name: farols1505
+
+  - name: product_sales_report
+    label: "Báo cáo hiệu quả sản phẩm"
+    type: analysis
+    maturity: low
+    description: "Báo cáo doanh thu, lợi nhuận, biên lợi nhuận theo sản phẩm và danh mục."
+    depends_on:
+      - ref('gld_product_performance')
+    owner:
+      name: farols1505

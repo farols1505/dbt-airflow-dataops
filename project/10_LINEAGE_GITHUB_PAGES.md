@@ -186,6 +186,7 @@ Badge **Docs & Lineage** trong README chuyển xanh và dẫn tới trang này.
 | Job `deploy` lỗi `Get Pages site failed` | Pages chưa bật | Phần đầu Bước 4 |
 | Trang trắng / không tải được | Dùng `index.html` thường (cần thêm file JSON) thay vì `static_index.html` | Workflow đã dùng `--static`; kiểm tra bước *Chuẩn bị nội dung trang* |
 | Lineage không có exposures | `exposures.yml` chưa lên `main` | Phát hành lại |
+| SonarCloud Quality Gate đỏ (Security Rating) ở PR lineage: S8707 trong `generate_lineage_mermaid.py`, S8233 trong `docs-pages.yml` | Bản cũ nhận `--manifest`/`--output` (đường dẫn từ dòng lệnh đưa thẳng vào `open`); `pages`/`id-token: write` cấp cho cả workflow | Dùng bản hiện tại: đường dẫn cố định tính từ gốc repo; quyền ghi chỉ ở job `deploy` |
 | `generate_lineage_mermaid.py` báo không tìm thấy manifest | Chưa `dbt parse` | `docker compose exec dbt dbt parse` |
 | Sơ đồ Mermaid không hiện trên GitHub | Lỗi cú pháp sau khi sửa tay | Không sửa tay `docs/LINEAGE.md`; chạy lại script |
 

@@ -1,0 +1,66 @@
+# =============================================================================
+# Tài liệu dbt + LINEAGE GRAPH tương tác → GitHub Pages (Bonus 2).
+#
+# Khi merge vào main: dựng SQL Server tạm → build model (target prod) → dbt docs generate --static
+# → đăng lên https://<user>.github.io/<repo>/
+# Trang này có sơ đồ lineage tương tác: nguồn → bronze → silver → gold → exposures (dashboard).
+# =============================================================================
+name: Docs & Lineage (GitHub Pages)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Quyền tối thiểu: mặc định chỉ đọc; quyền GHI chỉ cấp cho job deploy (SonarCloud S8233)
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Dựng SQL Server + dbt (target prod)
+        uses: ./.github/actions/setup-dbt-stack
+        with:
+          target: prod
+
+      # Build model để trang tài liệu có đủ kiểu dữ liệu và số dòng của từng bảng (catalog)
+      - name: dbt run
+        run: docker compose exec -T dbt dbt run
+
+      - name: dbt docs generate --static (một file HTML duy nhất)
+        run: docker compose exec -T dbt dbt docs generate --static
+
+      - name: Chuẩn bị nội dung trang
+        run: |
+          mkdir -p _site
+          cp dbt/target/static_index.html _site/index.html
+          touch _site/.nojekyll
+
+      - name: Upload nội dung trang
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write     # đăng nội dung lên GitHub Pages
+      id-token: write  # actions/deploy-pages xác thực bằng OIDC
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Đăng lên GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5

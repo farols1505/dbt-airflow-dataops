@@ -17,7 +17,10 @@
 
     {% set sql %}
         set nocount on;
+        -- Một transaction + xact_abort: lỗi ở BẤT KỲ câu nào → hoàn tác TẤT CẢ, kể cả lệnh tắt trigger
+        -- (không bao giờ để trigger bị tắt lại giữa chừng)
         set xact_abort on;
+        begin transaction;
 
         declare @now datetime = getdate();
         declare @orders table (SalesOrderID int primary key);
@@ -83,6 +86,8 @@
             where ModifiedDate = @now
         );
         alter table Production.ProductCategory enable trigger all;
+
+        commit transaction;
     {% endset %}
 
     {% do run_query(sql) %}

@@ -147,9 +147,8 @@ git commit -m "docs: document deployment environments"
 git push -u origin docs/environments
 gh pr create --base develop --title "docs: document deployment environments" \
   --body "Mô tả 3 môi trường dev/staging/production, cách tách môi trường, cấu hình Environments và secrets."
-gh pr checks --watch
-gh pr merge --squash --delete-branch
-git switch develop && git pull
+sleep 20      # GitHub cần vài giây để tạo check; chạy ngay thì gh báo "no checks reported" và thoát
+gh pr checks --watch && gh pr merge --squash --delete-branch && git switch develop && git pull
 ```
 
 Merge → Deploy **dev** chạy → lần này Discord nhận thông báo ✅ *Deploy → dev*.
@@ -164,9 +163,11 @@ Merge → Deploy **dev** chạy → lần này Discord nhận thông báo ✅ *D
 gh pr create --base main --head develop \
   --title "chore(release): dbt medallion refactor, Airflow pipeline and environments" \
   --body "Phát hành: model dbt mới + test đầy đủ (file 04), DAG Airflow (file 05), tài liệu môi trường (file 06)."
-gh pr checks --watch
-gh pr merge --merge
+sleep 20      # GitHub cần vài giây để tạo check; chạy ngay thì gh báo "no checks reported" và thoát
+gh pr checks --watch && gh pr merge --merge
 ```
+
+> Sau khi merge, GitHub có thể hiện banner vàng *"main had recent pushes — Compare & pull request"*. **Bỏ qua nó**: dự án không bao giờ mở PR `main → develop` (PR đó chỉ chứa merge commit, 0 file thay đổi, và bị `validate-pr` chặn). Điều này đúng cho mọi lần phát hành ở các file sau.
 
 ### 5.2. Theo dõi staging
 
@@ -247,6 +248,9 @@ Giờ có 2 tag: phiên bản ở file 03 và phiên bản vừa phát hành.
 
 | Hiện tượng | Nguyên nhân | Cách sửa |
 |---|---|---|
+| File vừa commit "biến mất" sau `git switch develop` | `gh pr merge` thất bại (check chưa xong) nên PR **chưa merge**; file chỉ nằm trên nhánh tính năng | Không mất gì: `gh pr checks <số PR> --watch && gh pr merge <số PR> --squash --delete-branch`, rồi `git pull` |
+| `gh pr checks --watch` báo `no checks reported on the '...' branch` rồi thoát | Chạy ngay sau `gh pr create`/`git push`, GitHub chưa kịp tạo check (cần ~5 giây) | Đợi vài giây rồi chạy lại; khối lệnh trong hướng dẫn đã có `sleep 20` |
+| Sau khi phát hành, GitHub hiện banner *"main had recent pushes — Compare & pull request"*; bấm vào thì PR `main → develop` bị `validate-pr` đỏ | PR ngược chiều, không cần thiết: chỉ chứa merge commit của lần phát hành, **0 file** thay đổi | Bỏ qua banner; nếu đã lỡ mở: `gh pr close <số PR>` |
 | `gh api ... environments/production` báo `422` về reviewers | Sai `USER_ID` | `gh api user --jq .id` rồi chạy lại |
 | Production chạy luôn không chờ duyệt | Chưa có luật `required_reviewers` | Làm lại Bước 2.2, kiểm tra Bước 2.3 |
 | Không thấy nút *Review deployments* | Không phải người duyệt, hoặc job chưa tới production | Đợi staging xong; kiểm tra danh sách reviewers |

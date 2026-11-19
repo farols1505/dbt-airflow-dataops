@@ -196,7 +196,7 @@ develop ──┬─────────────────────
 1. Nhánh mới từ `develop`: `git switch develop && git pull && git switch -c feature/...`.
 2. Commit theo Conventional Commits (pre-commit chặn nếu sai), `git add` **đúng đường dẫn**.
 3. `git push -u origin <nhánh>` → `gh pr create --base develop --title "..." --body "..."`.
-4. `gh pr checks --watch` → 4 check xanh → `gh pr merge --squash --delete-branch`.
+4. Đợi ~20 giây cho GitHub tạo check → `gh pr checks --watch && gh pr merge --squash --delete-branch` (dùng `&&`: check chưa xanh thì **không** merge).
 5. **Phát hành:** `gh pr create --base main --head develop --title "chore(release): ..."` → `gh pr merge --merge` (merge commit) → duyệt production.
 
 | Quy ước | Giá trị |

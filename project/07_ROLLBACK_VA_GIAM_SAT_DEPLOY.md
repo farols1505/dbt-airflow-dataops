@@ -136,15 +136,14 @@ git commit -m "docs: add deployment runbook and rollback procedure"
 git push -u origin ci/rollback-and-reporting
 gh pr create --base develop --title "ci: add rollback workflow, deployment report and runbook" \
   --body "Rollback thủ công theo tag, báo cáo tỉ lệ deploy thành công hằng tuần, runbook và quy trình rollback."
-gh pr checks --watch
-gh pr merge --squash --delete-branch
-git switch develop && git pull
+sleep 20      # GitHub cần vài giây để tạo check; chạy ngay thì gh báo "no checks reported" và thoát
+gh pr checks --watch && gh pr merge --squash --delete-branch && git switch develop && git pull
 
 # Phát hành lên main
 gh pr create --base main --head develop --title "chore(release): rollback and deployment reporting" \
   --body "Phát hành workflow rollback, báo cáo deployment, runbook."
-gh pr checks --watch
-gh pr merge --merge
+sleep 20      # GitHub cần vài giây để tạo check; chạy ngay thì gh báo "no checks reported" và thoát
+gh pr checks --watch && gh pr merge --merge
 ```
 
 Duyệt production như file 06 (Bước 5.3) → tag `prod-*` thứ 3.

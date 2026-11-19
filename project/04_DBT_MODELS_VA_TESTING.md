@@ -107,7 +107,7 @@ meta:
   expected_latency: "Nạp hằng ngày; dữ liệu mới nhất không cũ hơn 24 giờ"
 ```
 
-**Mô phỏng dữ liệu mới** (`dbt/macros/ops/simulate_new_data.sql`): AdventureWorks dừng ở năm 2014, nên freshness luôn lỗi. Macro chọn 20 đơn hàng mới nhất và cập nhật `ModifiedDate = GETDATE()` cho đơn hàng, dòng chi tiết, khách hàng, người, sản phẩm, danh mục liên quan. Macro **tạm tắt trigger** của AdventureWorks trong lúc cập nhật, để trigger không tự sửa các dữ liệu khác (vd. tổng tiền đơn hàng).
+**Mô phỏng dữ liệu mới** (`dbt/macros/ops/simulate_new_data.sql`): AdventureWorks dừng ở năm 2014, nên freshness luôn lỗi. Macro chọn 20 đơn hàng mới nhất và cập nhật `ModifiedDate = GETDATE()` cho đơn hàng, dòng chi tiết, khách hàng, người, sản phẩm, danh mục liên quan. Macro **tạm tắt trigger** của AdventureWorks trong lúc cập nhật, để trigger không tự sửa các dữ liệu khác (vd. tổng tiền đơn hàng). Toàn bộ chạy trong **một transaction** (`SET XACT_ABORT ON`): nếu một câu lỗi giữa chừng, mọi thay đổi — kể cả lệnh tắt trigger — đều được hoàn tác, nên trigger không bao giờ bị kẹt ở trạng thái tắt. Dữ liệu 20 đơn hàng vẫn là dữ liệu thật, đầy đủ; chỉ cột `ModifiedDate` thay đổi.
 
 Ai gọi macro này: CI (trước `dbt source freshness`), DAG Airflow (task `simulate_ingestion`), và bạn khi demo.
 
@@ -385,6 +385,7 @@ git push -u origin feature/dbt-medallion-refactor
 gh pr create --base develop \
   --title "refactor(dbt): rebuild medallion layers with full test coverage" \
   --body "Bronze 1-1 với nguồn, silver/gold viết lại và sửa lỗi logic, model RFM, 143 test, source freshness, tài liệu kiểm thử và hiệu năng."
+sleep 20      # GitHub cần vài giây để tạo check; chạy ngay thì gh báo "no checks reported" và thoát
 gh pr checks --watch
 ```
 

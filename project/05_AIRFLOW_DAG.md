@@ -88,7 +88,7 @@ check_sqlserver → dbt_deps → simulate_ingestion → source_freshness
 | `dbt_deps` | `BashOperator` | `dbt deps` |
 | `simulate_ingestion` | `BashOperator` | `dbt run-operation simulate_new_data` nếu tham số `simulate_new_data = true` (mặc định); `false` → bỏ qua |
 | `source_freshness` | `BashOperator` | `dbt source freshness` (lỗi nếu dữ liệu cũ > 48 giờ) |
-| `<tầng>.dbt_run` / `<tầng>.dbt_test` | `BashOperator` trong `TaskGroup` | `dbt run/test --select path:models/<tầng>`; tầng sau chỉ chạy khi test tầng trước pass |
+| `<tầng>.dbt_run` / `<tầng>.dbt_test` | `BashOperator` trong `TaskGroup` | `dbt run/test --select path:models/<tầng>`; tầng sau chỉ chạy khi test tầng trước pass. Bước test thêm `--indirect-selection buildable`: test so sánh gold↔silver chỉ chạy ở tầng gold (khi bảng gold đã có), không bị kéo vào tầng silver |
 | `data_quality.*` | Bash + 2 `SQLCheckOperator` | Bước 4 |
 | `dbt_docs_generate` | `BashOperator` | Sinh lại tài liệu sau mỗi lần chạy |
 
@@ -164,8 +164,10 @@ docker compose cp tests/. airflow-scheduler:/tmp/dagtests
 docker compose exec -T airflow-scheduler python -m pip install -q --user pytest==7.4.1
 docker compose exec -T -w /tmp -e DAG_TESTS_DAGS_FOLDER=/opt/airflow/dags airflow-scheduler python -m pytest dagtests -q
 # → 18 passed
-docker compose exec -T airflow-scheduler rm -rf /tmp/dagtests          # dọn dẹp (pytest mất khi tạo lại container)
+docker compose exec -T -u root airflow-scheduler rm -rf /tmp/dagtests  # dọn dẹp (pytest mất khi tạo lại container)
 ```
+
+> **Vì sao dọn dẹp cần `-u root`?** `docker compose cp` giữ nguyên chủ sở hữu của file trên máy bạn (uid 1000), còn `exec` mặc định chạy bằng user `airflow` (uid 50000), không có quyền xóa file của người khác → `Permission denied`.
 
 `DAG_TESTS_DAGS_FOLDER` chỉ cho test biết thư mục DAG trong container. Sai thư mục → test **báo lỗi ngay** (`Không thấy file DAG`), không "pass nhầm" với một DagBag rỗng.
 
@@ -198,6 +200,8 @@ Airflow đọc DAG trực tiếp từ thư mục `airflow/dags` trên máy, nên
 ### 6.3. Chạy với tham số
 
 ▶ → **Trigger DAG w/ config** → chọn `target = prod` → *Trigger*. Pipeline build vào `prod_bronze/silver/gold` trên máy bạn (task log ghi `--target prod`).
+
+> Đây là phép thử tốt cho thứ tự test: lần đầu chạy `prod`, schema `prod_gold` **chưa tồn tại** khi `silver.dbt_test` chạy. Nhờ `--indirect-selection buildable`, các test so sánh gold↔silver chỉ chạy ở `gold.dbt_test` → toàn bộ 14 task xanh.
 
 ### 6.4. Diễn tập lỗi + retry + thông báo
 
@@ -236,6 +240,7 @@ git push -u origin feature/airflow-dbt-pipeline
 gh pr create --base develop \
   --title "feat(airflow): orchestrate dbt layers with retries, quality checks and alerts" \
   --body "DAG dbt_pipeline: chạy theo tầng, retry tăng dần, timeout, SQL checks, thông báo Discord, 18 test pytest."
+sleep 20      # GitHub cần vài giây để tạo check; chạy ngay thì gh báo "no checks reported" và thoát
 gh pr checks --watch
 ```
 
@@ -278,6 +283,7 @@ git switch develop && git pull
 | `check_sqlserver` lỗi `Login failed for user 'dbt_user'` | Connection `mssql_default` lấy mật khẩu từ `.env` lúc tạo container | Sau khi đổi mật khẩu trong `.env`: `docker compose up -d` |
 | `check_sqlserver` lỗi `The conn_id mssql_default isn't defined` | Container Airflow tạo trước file 02 | `docker compose up -d --force-recreate airflow-webserver airflow-scheduler` |
 | `source_freshness` lỗi `ERROR STALE` | Đã tắt `simulate_new_data` và dữ liệu cũ > 48 giờ | Đúng thiết kế; trigger lại với `simulate_new_data = true` |
+| `silver.dbt_test` lỗi `Invalid object name '...prod_gold.gld_...'` (lần đầu chạy `prod`) | DAG bản cũ thiếu `--indirect-selection buildable` → test so sánh gold↔silver bị kéo vào bước silver khi bảng gold chưa có | Dùng `dbt_dag.py` mới nhất (đã có `buildable`); task đang retry sẽ tự lấy lệnh mới |
 | `silver.dbt_run` lỗi `Invalid column name 'modified_at'` | Bảng incremental kiểu cũ ở target đang chạy (vd. lần đầu chạy `prod` trên máy) | `docker compose exec dbt dbt build --full-refresh --target prod --select slvr_sales_orders+` |
 | Không nhận tin Discord | Thiếu/sai `NOTIFY_WEBHOOK_URL`, chưa tạo lại container | Sửa `.env` → `docker compose up -d` → gửi thử (Bước 1.6) |
 | Gửi thử in `False` kèm `HTTP Error 403/404` | URL webhook sai hoặc webhook đã bị xóa | Tạo webhook mới |

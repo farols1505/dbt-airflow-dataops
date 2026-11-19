@@ -292,6 +292,7 @@ git push -u origin ci/github-actions
 gh pr create --base develop \
   --title "ci: add CI/CD pipelines with GitHub Actions" \
   --body "CI (lint, dag-tests, dbt-build), kiểm tra PR, deploy dev/staging/production, macro vận hành, README."
+sleep 20      # GitHub cần vài giây để tạo check; chạy ngay thì gh báo "no checks reported" và thoát
 gh pr checks --watch        # theo dõi tới khi xong (~8–10 phút)
 ```
 
@@ -353,6 +354,7 @@ git commit -m "ci: lock dependencies and use binary-only installs in CI"
 git add scripts/ci/create_env.sh scripts/ci/dbt_summary.py scripts/init_sqlserver.sh
 git commit -m "refactor(scripts): address SonarCloud code smells"
 git push
+sleep 20      # GitHub cần vài giây để tạo check; chạy ngay thì gh báo "no checks reported" và thoát
 gh pr checks --watch        # đủ 5 check xanh, gồm "SonarCloud Code Analysis"
 ```
 
@@ -414,8 +416,8 @@ GitHub tự tạo Environment `dev` → xem ở trang repo, cột bên phải, m
 gh pr create --base main --head develop \
   --title "chore(release): first release with CI/CD pipelines" \
   --body "Phát hành lần đầu: CI, kiểm tra PR, deploy dev/staging/production, README."
-gh pr checks --watch
-gh pr merge --merge       # MERGE COMMIT, không squash, KHÔNG xóa nhánh develop
+sleep 20      # GitHub cần vài giây để tạo check; chạy ngay thì gh báo "no checks reported" và thoát
+gh pr checks --watch && gh pr merge --merge   # MERGE COMMIT, không squash, KHÔNG xóa nhánh develop
 ```
 
 Merge vào `main` → Deploy chạy `staging` rồi `production`:

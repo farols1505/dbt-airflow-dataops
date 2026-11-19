@@ -35,8 +35,11 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Cài pre-commit
-        run: pip install pre-commit
+      # --only-binary :all: → chỉ cài gói đóng gói sẵn (wheel), không chạy setup script của gói
+      # --constraint       → khóa phiên bản pre-commit và mọi phụ thuộc (file trong repo)
+      - name: Cài pre-commit (phiên bản đã khóa, chỉ dùng wheel)
+        run: |
+          pip install --only-binary :all: --constraint .github/requirements/lint-constraints.txt pre-commit
 
       - name: Cache môi trường của pre-commit
         uses: actions/cache@v6
@@ -63,9 +66,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      AIRFLOW_VERSION: "2.7.1"
-      PYTHON_VERSION: "3.11"
-      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      # Chạy test bên trong image Airflow CHÍNH THỨC đúng phiên bản dự án dùng → Airflow đã cài sẵn,
+      # không phải pip install Airflow (hàng trăm gói) trên máy ảo.
+      AIRFLOW_IMAGE: apache/airflow:2.7.1-python3.11
+      CONSTRAINTS_URL: https://raw.githubusercontent.com/apache/airflow/constraints-2.7.1/constraints-3.11.txt
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -80,27 +84,19 @@ jobs:
             echo "::notice::Chưa có test DAG trong thư mục tests/ (thêm ở file 05) — bỏ qua job này."
           fi
 
-      - name: Cài Python
-        if: steps.check.outputs.has_tests == 'true'
-        uses: actions/setup-python@v7
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Cài Airflow ${{ env.AIRFLOW_VERSION }} (theo constraints chính thức)
+      # Trong container: cài pytest (chỉ wheel, phiên bản khóa theo constraints chính thức của Airflow)
+      # → tạo database Airflow tạm (SQLite) → chạy pytest. Mã nguồn được gắn vào ở chế độ chỉ đọc.
+      - name: pytest — kiểm tra DAG trong image Airflow 2.7.1
         if: steps.check.outputs.has_tests == 'true'
         run: |
-          pip install "apache-airflow==${AIRFLOW_VERSION}" pytest \
-            --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
-
-      - name: Khởi tạo database Airflow tạm (SQLite)
-        if: steps.check.outputs.has_tests == 'true'
-        run: |
-          echo "AIRFLOW_HOME=$RUNNER_TEMP/airflow" >> "$GITHUB_ENV"
-          AIRFLOW_HOME="$RUNNER_TEMP/airflow" airflow db migrate
-
-      - name: pytest — kiểm tra DAG
-        if: steps.check.outputs.has_tests == 'true'
-        run: pytest -v
+          docker run --rm \
+            -v "$PWD:/repo:ro" -w /repo \
+            -e AIRFLOW__CORE__LOAD_EXAMPLES=False \
+            -e DAG_TESTS_DAGS_FOLDER=/repo/airflow/dags \
+            -e PYTHONDONTWRITEBYTECODE=1 \
+            "$AIRFLOW_IMAGE" \
+            bash -c 'pip install --quiet --only-binary :all: --constraint "$0" pytest && airflow db migrate > /dev/null && python -m pytest -v -p no:cacheprovider' \
+            "$CONSTRAINTS_URL"
 
   dbt-build:
     runs-on: ubuntu-latest

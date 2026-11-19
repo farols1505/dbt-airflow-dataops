@@ -102,8 +102,12 @@ Tag mới nhất luôn là **phiên bản production hiện hành**, nên lần 
 Chạy được cả trên máy (cần `gh auth login`):
 
 ```bash
-python3 scripts/ci/deploy_report.py --limit 50 --output /tmp/report.md
+python3 scripts/ci/deploy_report.py --limit 50          # chỉ in ra màn hình
 ```
+
+- `--limit` nhận 1–200 (số lần chạy gần nhất mỗi workflow). `--save` ghi thêm file `deployment-report.md` (workflow dùng cờ này để tạo artifact); trên máy không cần.
+- Khi `rollback.yml` chưa có trên `develop`, script in cảnh báo `HTTP 404 ... rollback.yml` và bỏ qua phần rollback — bình thường cho tới khi PR được merge.
+- **Vì sao không có `--output <đường dẫn>`?** SonarCloud coi giá trị dòng lệnh đưa thẳng vào lệnh `gh` (rule S8705) hoặc vào đường dẫn file (S8707) là lỗ hổng bảo mật → Quality Gate đỏ. Script luôn gọi `gh` với số cố định (200) rồi cắt danh sách trong Python, và chỉ ghi vào tên file cố định.
 
 ---
 
@@ -255,6 +259,7 @@ Mở lần chạy → **Summary**: bảng tỉ lệ thành công (Deploy dev; st
 
 | Hiện tượng | Nguyên nhân | Cách sửa |
 |---|---|---|
+| SonarCloud Quality Gate đỏ (Security Rating) ở PR này: S8705, S8707 trong `deploy_report.py`, S8233 trong `rollback.yml` | Bản cũ của script đưa `--limit`/`--output` thẳng vào lệnh/đường dẫn; `rollback.yml` cấp `contents: write` cho cả workflow | Dùng bản hiện tại: `gh` gọi với hằng số, `--save` thay `--output`; `rollback.yml` chỉ cấp quyền ghi cho job `rollback` |
 | `gh workflow run rollback.yml` báo `could not find any workflows named rollback.yml` | Workflow chưa có trên nhánh mặc định | Merge PR vào `develop` trước |
 | `Workflow does not have 'workflow_dispatch' trigger` với `--ref main` | File trên `main` chưa có / chưa phát hành | Phát hành `develop → main` (Bước 5) |
 | Diễn tập Bước 6 nhưng không có bước rollback | Chưa có tag `prod-*` nào → không có baseline/backup | Phải có ít nhất 1 lần deploy production thành công trước |

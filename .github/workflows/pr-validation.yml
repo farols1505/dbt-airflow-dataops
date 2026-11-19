@@ -1,0 +1,93 @@
+# =============================================================================
+# Kiểm tra Pull Request (không cần SQL Server, chạy rất nhanh):
+#   1. Tiêu đề PR theo Conventional Commits (vì khi Squash merge, tiêu đề PR = commit trên develop)
+#   2. Tên nhánh đúng quy ước
+#   3. Không thêm file lớn hơn 5 MB
+#   4. Không xung đột (conflict) với nhánh đích
+# =============================================================================
+name: PR Validation
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate-pr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PR_TITLE: ${{ github.event.pull_request.title }}
+      HEAD_REF: ${{ github.head_ref }}
+      BASE_REF: ${{ github.base_ref }}
+      MAX_FILE_MB: "5"
+    steps:
+      - name: Checkout nhánh của PR (toàn bộ lịch sử)
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: 1. Tiêu đề PR theo Conventional Commits
+        run: |
+          pattern='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\([a-z0-9._/-]+\))?!?: [^ ].{2,}$'
+          if [[ "$PR_TITLE" =~ $pattern ]]; then
+            echo "✅ Tiêu đề hợp lệ: $PR_TITLE"
+          else
+            echo "::error::Tiêu đề PR phải theo dạng 'loại(phạm vi tùy chọn): mô tả', vd. 'feat(dbt): add silver models'. Loại hợp lệ: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert."
+            echo "Tiêu đề hiện tại: $PR_TITLE"
+            exit 1
+          fi
+
+      - name: 2. Tên nhánh đúng quy ước
+        run: |
+          if [ "$BASE_REF" = "main" ]; then
+            pattern='^(develop|hotfix/.+)$'
+            rule="PR vào main chỉ đến từ develop (phát hành) hoặc hotfix/*"
+          else
+            pattern='^(feature|fix|docs|ci|chore|refactor|test|perf|build|style|hotfix)/.+$'
+            rule="Nhánh phải bắt đầu bằng feature/, fix/, docs/, ci/, chore/, refactor/, test/, perf/, build/, style/ hoặc hotfix/"
+          fi
+          if [[ "$HEAD_REF" =~ $pattern ]]; then
+            echo "✅ Nhánh hợp lệ: $HEAD_REF → $BASE_REF"
+          else
+            echo "::error::$rule. Nhánh hiện tại: $HEAD_REF"
+            exit 1
+          fi
+
+      - name: 3. Không có file lớn hơn ${{ env.MAX_FILE_MB }} MB
+        run: |
+          git fetch --no-tags origin "$BASE_REF"
+          limit=$((MAX_FILE_MB * 1024 * 1024))
+          too_big=0
+          while IFS= read -r file; do
+            [ -f "$file" ] || continue
+            size=$(stat -c %s "$file")
+            if [ "$size" -gt "$limit" ]; then
+              echo "::error file=$file::File quá lớn: $((size / 1024 / 1024)) MB (giới hạn ${MAX_FILE_MB} MB)"
+              too_big=1
+            fi
+          done < <(git diff --name-only --diff-filter=AM "origin/$BASE_REF...HEAD")
+          if [ "$too_big" -eq 1 ]; then exit 1; fi
+          echo "✅ Không có file nào vượt ${MAX_FILE_MB} MB"
+
+      - name: 4. Không xung đột với nhánh đích
+        run: |
+          if git merge-tree --write-tree "origin/$BASE_REF" HEAD > /dev/null; then
+            echo "✅ Merge được vào $BASE_REF mà không có xung đột"
+          else
+            echo "::error::Nhánh đang xung đột với $BASE_REF. Chạy: git switch $HEAD_REF && git merge origin/$BASE_REF, sửa xung đột rồi push lại."
+            exit 1
+          fi
+
+      - name: Tóm tắt
+        if: always()
+        run: |
+          {
+            echo "### Kiểm tra Pull Request"
+            echo "- Tiêu đề: \`$PR_TITLE\`"
+            echo "- Nhánh: \`$HEAD_REF\` → \`$BASE_REF\`"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -23,8 +23,9 @@ on:
         type: string
         required: true
 
+# Quyền tối thiểu: mặc định chỉ đọc; quyền GHI chỉ cấp cho đúng job cần (SonarCloud S8233)
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   validate:
@@ -59,6 +60,8 @@ jobs:
 
   rollback:
     needs: validate
+    permissions:
+      contents: write  # _deploy.yml gắn tag prod-...-rollback sau khi khôi phục thành công
     uses: ./.github/workflows/_deploy.yml
     with:
       environment: production

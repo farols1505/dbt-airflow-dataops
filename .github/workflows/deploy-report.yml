@@ -36,7 +36,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           LIMIT: ${{ inputs.limit || 100 }}
-        run: python3 scripts/ci/deploy_report.py --limit "$LIMIT" --output deployment-report.md
+        run: python3 scripts/ci/deploy_report.py --limit "$LIMIT" --save  # → deployment-report.md
 
       - name: Upload báo cáo
         uses: actions/upload-artifact@v7

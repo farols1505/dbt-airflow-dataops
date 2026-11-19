@@ -6,7 +6,12 @@ Nguồn dữ liệu:
     - Các tag prod-* (mỗi tag = một lần deploy/rollback production thành công).
 
 Cách dùng (cần đăng nhập gh, hoặc biến GH_TOKEN trên GitHub Actions):
-    python3 scripts/ci/deploy_report.py --limit 100 --output deployment-report.md
+    python3 scripts/ci/deploy_report.py --limit 50          # chỉ in báo cáo ra màn hình
+    python3 scripts/ci/deploy_report.py --limit 100 --save  # in + ghi file deployment-report.md
+
+An toàn (SonarCloud S8705, S8707): không giá trị nào từ dòng lệnh được đưa vào lệnh `gh`/`git`
+hay vào đường dẫn file. Lệnh `gh` luôn lấy cố định MAX_RUNS lần chạy, `--limit` chỉ cắt danh sách
+trong Python; tên file báo cáo là hằng số REPORT_FILE.
 """
 
 from __future__ import annotations
@@ -21,12 +26,24 @@ from datetime import datetime, timezone
 
 WORKFLOWS = {"deploy.yml": "Deploy", "rollback.yml": "Rollback (thủ công)"}
 RUN_FIELDS = "databaseId,conclusion,status,headBranch,event,createdAt,updatedAt,url,displayTitle"
+MAX_RUNS = 200  # số lần chạy tối đa lấy từ GitHub cho mỗi workflow
+REPORT_FILE = "deployment-report.md"
 
 
-def gh_runs(workflow: str, limit: int) -> list[dict]:
-    """Danh sách lần chạy đã KẾT THÚC của một workflow."""
+def gh_runs(workflow: str) -> list[dict]:
+    """MAX_RUNS lần chạy gần nhất của một workflow (mới nhất trước)."""
     result = subprocess.run(
-        ["gh", "run", "list", "--workflow", workflow, "--limit", str(limit), "--json", RUN_FIELDS],
+        [
+            "gh",
+            "run",
+            "list",
+            "--workflow",
+            workflow,
+            "--limit",
+            str(MAX_RUNS),
+            "--json",
+            RUN_FIELDS,
+        ],
         capture_output=True,
         text=True,
         check=False,
@@ -34,7 +51,7 @@ def gh_runs(workflow: str, limit: int) -> list[dict]:
     if result.returncode != 0:
         print(f"::warning::Không đọc được lịch sử {workflow}: {result.stderr.strip()}")
         return []
-    return [r for r in json.loads(result.stdout or "[]") if r.get("status") == "completed"]
+    return json.loads(result.stdout or "[]")
 
 
 def parse_time(value: str) -> datetime:
@@ -74,24 +91,25 @@ def environment_of(workflow: str, branch: str) -> str:
     return {"develop": "dev", "main": "staging → production"}.get(branch, branch)
 
 
-def build_report(limit: int) -> str:
-    stats: dict[tuple[str, str], dict] = defaultdict(lambda: {"total": 0, "success": 0, "mins": []})
-    recent: list[tuple[str, dict]] = []
-
+def collect_runs(limit: int) -> list[tuple[str, dict]]:
+    """(workflow, run) của các lần chạy đã KẾT THÚC, trong `limit` lần gần nhất mỗi workflow."""
+    finished = []
     for workflow in WORKFLOWS:
-        for run in gh_runs(workflow, limit):
-            key = (workflow, environment_of(workflow, run.get("headBranch", "?")))
-            stats[key]["total"] += 1
-            stats[key]["success"] += 1 if run.get("conclusion") == "success" else 0
-            stats[key]["mins"].append(duration_minutes(run))
-            recent.append((workflow, run))
+        for run in gh_runs(workflow)[:limit]:
+            if run.get("status") == "completed":
+                finished.append((workflow, run))
+    return finished
+
+
+def success_rate_section(runs: list[tuple[str, dict]]) -> list[str]:
+    stats: dict[tuple[str, str], dict] = defaultdict(lambda: {"total": 0, "success": 0, "mins": []})
+    for workflow, run in runs:
+        s = stats[(workflow, environment_of(workflow, run.get("headBranch", "?")))]
+        s["total"] += 1
+        s["success"] += 1 if run.get("conclusion") == "success" else 0
+        s["mins"].append(duration_minutes(run))
 
     lines = [
-        "# 📊 Báo cáo deployment",
-        "",
-        f"_Tạo lúc {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')} UTC — "
-        f"thống kê tối đa {limit} lần chạy gần nhất mỗi workflow._",
-        "",
         "## Tỉ lệ thành công",
         "",
         "| Workflow | Môi trường | Số lần | Thành công | Thất bại | Tỉ lệ thành công "
@@ -102,31 +120,35 @@ def build_report(limit: int) -> str:
         lines.append("| _(chưa có lần deploy nào)_ | | | | | | |")
     for (workflow, env), s in sorted(stats.items()):
         failed = s["total"] - s["success"]
-        rate = 100 * s["success"] / s["total"] if s["total"] else 0
-        avg = sum(s["mins"]) / len(s["mins"]) if s["mins"] else 0
+        rate = 100 * s["success"] / s["total"]
+        avg = sum(s["mins"]) / len(s["mins"])
         lines.append(
             f"| {WORKFLOWS[workflow]} | {env} | {s['total']} | {s['success']} | {failed} "
             f"| **{rate:.0f}%** | {avg:.1f} phút |"
         )
+    return lines
 
-    lines += [
-        "",
+
+def recent_runs_section(runs: list[tuple[str, dict]]) -> list[str]:
+    lines = [
         "## 10 lần chạy gần nhất",
         "",
         "| Thời điểm | Workflow | Nhánh | Kết quả | Chi tiết |",
         "|---|---|---|---|---|",
     ]
-    recent.sort(key=lambda item: item[1]["createdAt"], reverse=True)
-    for workflow, run in recent[:10]:
+    newest_first = sorted(runs, key=lambda item: item[1]["createdAt"], reverse=True)
+    for workflow, run in newest_first[:10]:
         icon = "✅" if run.get("conclusion") == "success" else "❌"
         lines.append(
             f"| {run['createdAt'][:16].replace('T', ' ')} | {WORKFLOWS[workflow]} "
             f"| `{run.get('headBranch', '?')}` | {icon} {run.get('conclusion')} "
             f"| [xem]({run.get('url')}) |"
         )
+    return lines
 
-    lines += [
-        "",
+
+def prod_tags_section() -> list[str]:
+    lines = [
         "## Lịch sử phiên bản production (tag prod-*)",
         "",
         "| Tag | Thời điểm | Mô tả |",
@@ -137,20 +159,45 @@ def build_report(limit: int) -> str:
         lines.append("| _(chưa có)_ | | |")
     for tag, when, subject in tags[:20]:
         lines.append(f"| `{tag}` | {when[:16]} | {subject} |")
+    return lines
 
+
+def build_report(limit: int) -> str:
+    runs = collect_runs(limit)
+    lines = [
+        "# 📊 Báo cáo deployment",
+        "",
+        f"_Tạo lúc {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')} UTC — "
+        f"thống kê tối đa {limit} lần chạy gần nhất mỗi workflow._",
+        "",
+    ]
+    lines += success_rate_section(runs) + [""]
+    lines += recent_runs_section(runs) + [""]
+    lines += prod_tags_section()
     return "\n".join(lines) + "\n"
+
+
+def limit_value(text: str) -> int:
+    """Giá trị --limit hợp lệ: số nguyên từ 1 đến MAX_RUNS."""
+    value = int(text)
+    if not 1 <= value <= MAX_RUNS:
+        raise argparse.ArgumentTypeError(f"--limit phải từ 1 đến {MAX_RUNS}")
+    return value
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--limit", type=int, default=100)
-    parser.add_argument("--output", default="deployment-report.md")
+    parser.add_argument(
+        "--limit", type=limit_value, default=100, help=f"1–{MAX_RUNS} (mặc định 100)"
+    )
+    parser.add_argument("--save", action="store_true", help=f"ghi thêm ra file {REPORT_FILE}")
     args = parser.parse_args()
 
     report = build_report(args.limit)
     print(report)
-    with open(args.output, "w", encoding="utf-8") as f:
-        f.write(report)
+    if args.save:
+        with open(REPORT_FILE, "w", encoding="utf-8") as f:
+            f.write(report)
 
     summary_file = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary_file:

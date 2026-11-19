@@ -1,3 +1,6 @@
 [tool.black]
 line-length = 100
 target-version = ["py39"]   # Airflow 2.7.1 chạy Python 3.9
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

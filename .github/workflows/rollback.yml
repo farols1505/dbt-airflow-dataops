@@ -1,0 +1,69 @@
+# =============================================================================
+# Rollback THỦ CÔNG production về một phiên bản cũ (một tag prod-*).
+#
+# Chạy: GitHub → Actions → "Rollback (thủ công)" → Run workflow → nhập tag + lý do.
+#       hoặc: gh workflow run rollback.yml -f tag=prod-20261113-1530 -f reason="..."
+#
+# Cách hoạt động: deploy lại đúng code của tag đó lên production (qua _deploy.yml, vẫn cần
+# người duyệt của Environment "production"), rồi gắn tag mới prod-...-rollback trỏ về commit cũ.
+# Tag mới nhất luôn là phiên bản production hiện hành → các lần deploy sau tính từ đây.
+# Quy trình chi tiết: docs/ROLLBACK.md
+# =============================================================================
+name: Rollback (thủ công)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag phiên bản production cần quay về (vd. prod-20261113-1530)"
+        type: string
+        required: true
+      reason:
+        description: "Lý do rollback (ghi vào tag và thông báo)"
+        type: string
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    name: Kiểm tra tag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (kèm toàn bộ tag)
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Tag phải tồn tại và có dạng prod-*
+        env:
+          TAG: ${{ inputs.tag }}
+          REASON: ${{ inputs.reason }}
+        run: |
+          if [[ ! "$TAG" =~ ^prod-[0-9]{8}-[0-9]{4}(-rollback)?$ ]]; then
+            echo "::error::Tag không đúng dạng prod-YYYYMMDD-HHMM: $TAG"
+            exit 1
+          fi
+          if ! git rev-parse -q --verify "refs/tags/$TAG" > /dev/null; then
+            echo "::error::Không tìm thấy tag $TAG. Các tag hiện có:"
+            git tag -l 'prod-*' --sort=-creatordate | head -n 20
+            exit 1
+          fi
+          {
+            echo "### ↩️ Yêu cầu rollback production"
+            echo "- Quay về: \`$TAG\` (commit \`$(git rev-parse --short "$TAG^{commit}")\`)"
+            echo "- Lý do: $REASON"
+            echo "- Người yêu cầu: $GITHUB_ACTOR"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  rollback:
+    needs: validate
+    uses: ./.github/workflows/_deploy.yml
+    with:
+      environment: production
+      target: prod
+      ref: ${{ inputs.tag }}
+      is_rollback: true
+      reason: ${{ inputs.reason }}
+    secrets: inherit

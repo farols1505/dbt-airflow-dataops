@@ -4,17 +4,23 @@
 GitHub hiển thị Mermaid thành sơ đồ ngay trong trang Markdown, nên ai mở repo cũng thấy
 luồng dữ liệu: nguồn → bronze → silver → gold → exposures (dashboard/báo cáo).
 
-Cách dùng (tại thư mục gốc dự án):
+Cách dùng (chạy từ thư mục nào cũng được):
     docker compose exec dbt dbt parse          # tạo/cập nhật dbt/target/manifest.json
     python3 scripts/generate_lineage_mermaid.py
+
+An toàn (SonarCloud S8707): không nhận đường dẫn từ dòng lệnh; file đọc/ghi là hằng số,
+tính từ thư mục gốc của repo.
 """
 
 from __future__ import annotations
 
-import argparse
 import json
 import sys
 from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+MANIFEST_PATH = REPO_ROOT / "dbt" / "target" / "manifest.json"
+OUTPUT_PATH = REPO_ROOT / "docs" / "LINEAGE.md"
 
 LAYER_STYLES = {
     "source": "fill:#eceff1,stroke:#607d8b,color:#263238",
@@ -78,16 +84,10 @@ def build_mermaid(manifest: dict) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--manifest", default="dbt/target/manifest.json")
-    parser.add_argument("--output", default="docs/LINEAGE.md")
-    args = parser.parse_args()
-
-    manifest_path = Path(args.manifest)
-    if not manifest_path.exists():
-        print(f"❌ Không tìm thấy {manifest_path}. Chạy trước: docker compose exec dbt dbt parse")
+    if not MANIFEST_PATH.exists():
+        print(f"❌ Không tìm thấy {MANIFEST_PATH}. Chạy trước: docker compose exec dbt dbt parse")
         return 1
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
 
     models = [n for n in manifest["nodes"].values() if n.get("resource_type") == "model"]
     content = "\n".join(
@@ -109,9 +109,9 @@ def main() -> int:
             "",
         ]
     )
-    Path(args.output).parent.mkdir(parents=True, exist_ok=True)
-    Path(args.output).write_text(content, encoding="utf-8")
-    print(f"✅ Đã ghi {args.output}")
+    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    OUTPUT_PATH.write_text(content, encoding="utf-8")
+    print(f"✅ Đã ghi {OUTPUT_PATH.relative_to(REPO_ROOT)}")
     return 0
 
 

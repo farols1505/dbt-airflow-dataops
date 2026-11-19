@@ -86,9 +86,11 @@ jobs:
         uses: ./.github/actions/setup-dbt-stack
         with:
           target: ${{ inputs.target }}
+        # Tên biến cố ý KHÁC tên biến của docker-compose.yml: secret chưa tạo = chuỗi rỗng, nếu đặt
+        # tên SA_PASSWORD thì docker compose sẽ ưu tiên giá trị rỗng này hơn mật khẩu trong .env.
         env:
-          SA_PASSWORD: ${{ secrets.SA_PASSWORD }}
-          DBT_ENV_SECRET_PASSWORD: ${{ secrets.DBT_ENV_SECRET_PASSWORD }}
+          SECRET_SA_PASSWORD: ${{ secrets.SA_PASSWORD }}
+          SECRET_DBT_PASSWORD: ${{ secrets.DBT_ENV_SECRET_PASSWORD }}
 
       - name: 1. Pre-deploy validation — kết nối, parse, compile
         run: |

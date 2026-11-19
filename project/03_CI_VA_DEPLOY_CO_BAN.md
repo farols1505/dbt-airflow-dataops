@@ -23,6 +23,7 @@
 - [Bước 5 — Workflow deploy](#bước-5--workflow-deploy)
 - [Bước 6 — README](#bước-6--readme)
 - [Bước 7 — Commit và mở Pull Request](#bước-7--commit-và-mở-pull-request)
+  - [7.6 — SonarCloud](#76-sonarcloud-nếu-repo-có-kết-nối)
 - [Bước 8 — Bật CI bắt buộc](#bước-8--bật-ci-bắt-buộc)
 - [Bước 9 — Kiểm tra deploy dev tự động](#bước-9--kiểm-tra-deploy-dev-tự-động)
 - [Bước 10 — Phát hành lần đầu lên main](#bước-10--phát-hành-lần-đầu-lên-main)
@@ -40,6 +41,7 @@
 | `scripts/ci/dbt.sh` | Chạy 1 lệnh dbt trong container, lưu `run_results.json` với nhãn riêng (`run_results_build.json`...) | Giữ kết quả từng lệnh để tóm tắt |
 | `scripts/ci/dbt_summary.py` | Đọc các `run_results_*.json` → bảng số model/test thành công/lỗi + chi tiết lỗi → **Job Summary** | Đọc kết quả ngay trên trang GitHub, không phải lục log |
 | `.github/workflows/ci.yml` | 3 job song song: `lint`, `dag-tests`, `dbt-build` | **Phần 4A**: CI cho mọi Pull Request |
+| `.github/requirements/lint-constraints.txt` | Khóa phiên bản pre-commit 4.7.0 và 10 gói phụ thuộc của nó | Job `lint` cài đúng các phiên bản này (an toàn chuỗi cung ứng; đạt yêu cầu bảo mật của SonarCloud) |
 | `.github/workflows/pr-validation.yml` | Job `validate-pr`: tiêu đề PR, tên nhánh, file > 5 MB, xung đột | **Phần 4A**: "Pull request validation" |
 | `dbt/macros/ops/_ops_helpers.sql` | 3 macro nhỏ: tên schema của tầng, liệt kê bảng/view, đếm dòng | Dùng chung cho các macro vận hành |
 | `dbt/macros/ops/health_check.sql` | Kiểm tra mọi bảng/view của các tầng tồn tại và có dữ liệu | **Post-deploy health check** |
@@ -59,7 +61,7 @@
 |---|---|---|
 | 0 | `fix(scripts): make SQL Server init script robust for CI` | `scripts/init_sqlserver.sh` |
 | 1 | `ci: add reusable action to provision SQL Server and dbt` | action + `create_env.sh`, `dbt.sh`, `dbt_summary.py` |
-| 2 | `ci: add CI workflow for pull requests` | `ci.yml` |
+| 2 | `ci: add CI workflow for pull requests` | `ci.yml`, `lint-constraints.txt` |
 | 3 | `ci: add pull request validation workflow` | `pr-validation.yml` |
 | 4 | `feat(dbt): add operational macros for health check, backup and restore` | `dbt/macros/ops/` (trừ `simulate_new_data.sql`) |
 | 5 | `ci: add deployment workflows for dev, staging and production` | `deploy.yml`, `_deploy.yml`, `deploy_baseline.sh`, `notify.py` |
@@ -145,11 +147,15 @@ Hai script phụ:
 
 | Job | Các bước | Đáp ứng yêu cầu |
 |---|---|---|
-| **`lint`** (~1 phút) | Cài pre-commit → `black` → `flake8` → `sqlfluff-lint` → các hook còn lại (YAML, file lớn, khóa bí mật, xung đột, xuống dòng) | "Python code linting (flake8, black)", "SQL linting (sqlfluff)" |
-| **`dag-tests`** | Chưa có `tests/test_*.py` → **bỏ qua** (thông báo "thêm ở file 05"). Có rồi → cài Airflow 2.7.1 theo constraints chính thức → `airflow db migrate` (SQLite) → `pytest` | Kiểm tra DAG trước khi lên Airflow |
+| **`lint`** (~1 phút) | Cài pre-commit (**khóa phiên bản** bằng `lint-constraints.txt`, **chỉ dùng wheel** `--only-binary :all:`) → `black` → `flake8` → `sqlfluff-lint` → các hook còn lại (YAML, file lớn, khóa bí mật, xung đột, xuống dòng) | "Python code linting (flake8, black)", "SQL linting (sqlfluff)" |
+| **`dag-tests`** | Chưa có `tests/test_*.py` → **bỏ qua** (thông báo "thêm ở file 05"). Có rồi → chạy trong **image Airflow chính thức `apache/airflow:2.7.1-python3.11`**: cài pytest (chỉ wheel, khóa theo constraints của Airflow) → `airflow db migrate` (SQLite) → `pytest` | Kiểm tra DAG trước khi lên Airflow |
 | **`dbt-build`** (~6–8 phút) | Dựng SQL Server (Bước 1) → `dbt debug` → `dbt compile` → `dbt build` → *(từ file 04)* `simulate_new_data` + `dbt source freshness` → `dbt docs generate` → tóm tắt → upload artifact `dbt-ci-artifacts` (tài liệu, manifest, kết quả, log) | "DBT model compilation", "DBT test execution on pull requests", "Automated documentation generation" |
 
 > Vì sao `lint` gọi **pre-commit** thay vì cài black/flake8 riêng? Để CI dùng **đúng phiên bản và cấu hình** như lúc bạn commit ở máy. Local pass thì CI pass.
+>
+> Vì sao mọi lệnh `pip install` trong CI đều có `--only-binary :all:` và `--constraint`? `--only-binary :all:` chỉ cho cài gói đã đóng gói sẵn (wheel), nên không chạy script cài đặt (`setup.py`) của bất kỳ gói nào; `--constraint` khóa phiên bản mọi gói, kể cả gói phụ thuộc gián tiếp. Hai lớp này chống tấn công chuỗi cung ứng (gói bị chiếm quyền phát hành bản độc hại) và là điều kiện để qua kiểm tra bảo mật của SonarCloud (xem Bước 7.6).
+>
+> Vì sao `dag-tests` chạy trong image Airflow chính thức thay vì `pip install apache-airflow`? Image có sẵn đúng Airflow 2.7.1, nhanh hơn cài hàng trăm gói; và một số gói Airflow 2.7.1 cần (vd. `pendulum 2.1.2`) **không có wheel** cho Python 3.11, nên không thể cài kèm `--only-binary :all:`.
 
 ---
 
@@ -254,7 +260,7 @@ git add .github/actions/setup-dbt-stack/action.yml scripts/ci/create_env.sh scri
 git commit -m "ci: add reusable action to provision SQL Server and dbt"
 
 # 2
-git add .github/workflows/ci.yml
+git add .github/workflows/ci.yml .github/requirements/lint-constraints.txt
 git commit -m "ci: add CI workflow for pull requests"
 
 # 3
@@ -311,6 +317,46 @@ gh pr merge --squash --delete-branch
 git switch develop
 git pull
 ```
+
+### 7.6. SonarCloud (nếu repo có kết nối)
+
+Nếu tài khoản GitHub của bạn đã cài ứng dụng **SonarCloud**, PR có thêm check **SonarCloud Code Analysis**: SonarCloud tự phân tích code mới của PR và đánh giá theo *Quality Gate* (Sonar way). Check này **không** nằm trong danh sách check bắt buộc (Bước 8), nên đỏ cũng không chặn merge (`gh pr view --json mergeStateStatus` → `UNSTABLE` = vẫn merge được). Nhưng nên giữ nó xanh: đây là bằng chứng tốt cho tiêu chí "code quality checks".
+
+**Xem lý do đỏ:**
+
+```bash
+K=farols1505_dbt-airflow-dataops; PR=$(gh pr view --json number --jq .number)
+# Điều kiện nào của Quality Gate bị lỗi
+curl -s "https://sonarcloud.io/api/qualitygates/project_status?projectKey=$K&pullRequest=$PR" \
+  | python3 -c "import sys,json; [print(c['metricKey'], c['status'], c.get('actualValue')) for c in json.load(sys.stdin)['projectStatus']['conditions']]"
+# Danh sách vấn đề
+curl -s "https://sonarcloud.io/api/issues/search?componentKeys=$K&pullRequest=$PR&resolved=false" \
+  | python3 -c "import sys,json; [print(i['type'], i['rule'], i['component'].split(':',1)[1], i.get('line'), '-', i['message']) for i in json.load(sys.stdin)['issues']]"
+```
+
+**Lần chạy đầu tiên của PR này** (bản cũ của `ci.yml`), Quality Gate đỏ vì **Security Rating = C**: 3 lỗ hổng ở các lệnh `pip install` trong `ci.yml` (rule `githubactions:S8541`: thiếu `--only-binary :all:`; `githubactions:S8544`: chưa khóa phiên bản), cùng 5 code smell trong script. Đã sửa:
+
+| Vấn đề | Cách sửa |
+|---|---|
+| `pip install pre-commit` chưa khóa, có thể chạy setup script | `pip install --only-binary :all: --constraint .github/requirements/lint-constraints.txt pre-commit` |
+| `pip install apache-airflow ...` có thể chạy setup script | Chạy test trong image `apache/airflow:2.7.1-python3.11`; chỉ cài pytest với `--only-binary :all: --constraint` |
+| Shell dùng `[ ]` | Đổi sang `[[ ]]` (`create_env.sh`, `init_sqlserver.sh`) |
+| Dùng thẳng tham số `$1` trong hàm | `local query="$1"` (`init_sqlserver.sh`) |
+| Biểu thức điều kiện lồng nhau | Tách thành `if / elif` (`dbt_summary.py`) |
+
+**Nếu bạn đã push PR theo bản cũ** (Quality Gate đỏ), thêm 2 commit vào chính nhánh PR rồi push:
+
+```bash
+git switch ci/github-actions
+git add .github/workflows/ci.yml .github/requirements/lint-constraints.txt
+git commit -m "ci: lock dependencies and use binary-only installs in CI"
+git add scripts/ci/create_env.sh scripts/ci/dbt_summary.py scripts/init_sqlserver.sh
+git commit -m "refactor(scripts): address SonarCloud code smells"
+git push
+gh pr checks --watch        # đủ 5 check xanh, gồm "SonarCloud Code Analysis"
+```
+
+> Các PR sau (file 04, 05, 07, 10) có thể bị SonarCloud báo vấn đề mới. Cách xử lý giống hệt: xem bằng 2 lệnh `curl` ở trên → sửa trên nhánh PR → push. Lỗi **bảo mật** (Vulnerability, Security Hotspot) làm Quality Gate đỏ, cần sửa; *code smell* thường chỉ là gợi ý.
 
 ---
 
@@ -426,6 +472,7 @@ git tag -l 'prod-*'         # vd. prod-20261114-0930
 | `dbt-build` đỏ ở bước *Dựng SQL Server* | Build image hoặc restore lỗi (mạng chậm) | Xem bước *Log container khi lỗi*; *Re-run failed jobs* |
 | `dbt-build` đỏ ở `dbt build` | Model/test lỗi | Đọc **Summary** (bảng chi tiết lỗi) hoặc artifact `dbt.log` |
 | PR báo `Required status check "lint" is expected` mãi | Tên check ở Bước 8 không khớp tên job | Chạy lại lệnh Bước 8 với tên đúng |
+| Check **SonarCloud Code Analysis** đỏ | Quality Gate của SonarCloud không đạt (thường là Security Rating) | Bước 7.6; check này không chặn merge |
 | Deploy production đỏ ở bước 7 (tag) với `Permission denied` | Workflow thiếu quyền ghi | Kiểm tra `permissions: contents: write` trong `deploy.yml`; *Settings → Actions → General → Workflow permissions* |
 | `gh pr merge --merge` báo merge commit không được phép | Repo tắt merge commit | `gh repo edit --enable-merge-commit` (file 02, Bước 11.1) |
 

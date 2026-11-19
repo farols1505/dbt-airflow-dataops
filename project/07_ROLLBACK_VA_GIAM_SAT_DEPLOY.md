@@ -185,6 +185,9 @@ Kết quả: job đỏ, **không có tag mới** (production vẫn là phiên b�
 
 ## Bước 7 — Diễn tập rollback thủ công
 
+> **Điều kiện:** đã xong **toàn bộ Bước 5**: PR đã merge vào `develop` **và** đã phát hành lên `main` (duyệt production). `gh workflow run` tìm workflow trên nhánh mặc định (`develop`) rồi chạy bản trên `--ref main`; thiếu ở một trong hai nơi → `HTTP 404: Not Found (.../workflows/rollback.yml)`.
+> Kiểm tra nhanh: `gh workflow list` phải có dòng **Rollback (thủ công)**.
+
 ```bash
 git fetch --tags
 git tag -l 'prod-*' --sort=-creatordate --format='%(refname:short)  %(contents:subject)'
@@ -260,7 +263,7 @@ Mở lần chạy → **Summary**: bảng tỉ lệ thành công (Deploy dev; st
 | Hiện tượng | Nguyên nhân | Cách sửa |
 |---|---|---|
 | SonarCloud Quality Gate đỏ (Security Rating) ở PR này: S8705, S8707 trong `deploy_report.py`, S8233 trong `rollback.yml` | Bản cũ của script đưa `--limit`/`--output` thẳng vào lệnh/đường dẫn; `rollback.yml` cấp `contents: write` cho cả workflow | Dùng bản hiện tại: `gh` gọi với hằng số, `--save` thay `--output`; `rollback.yml` chỉ cấp quyền ghi cho job `rollback` |
-| `gh workflow run rollback.yml` báo `could not find any workflows named rollback.yml` | Workflow chưa có trên nhánh mặc định | Merge PR vào `develop` trước |
+| `gh workflow run rollback.yml` báo `HTTP 404: Not Found (.../workflows/rollback.yml)` hoặc `could not find any workflows named rollback.yml` | `rollback.yml` chưa có trên `develop` (nhánh mặc định) và/hoặc `main` | Làm hết Bước 5: merge PR vào `develop`, phát hành lên `main`, duyệt production; rồi `gh workflow list` phải thấy *Rollback (thủ công)* |
 | `Workflow does not have 'workflow_dispatch' trigger` với `--ref main` | File trên `main` chưa có / chưa phát hành | Phát hành `develop → main` (Bước 5) |
 | Diễn tập Bước 6 nhưng không có bước rollback | Chưa có tag `prod-*` nào → không có baseline/backup | Phải có ít nhất 1 lần deploy production thành công trước |
 | Job `validate` của rollback đỏ: `Không tìm thấy tag` | Gõ sai tag | Xem danh sách tag (Bước 7) |

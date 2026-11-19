@@ -1,0 +1,208 @@
+version: 2
+
+# Tầng SILVER: join nhiều model bronze + logic nghiệp vụ. Materialized: table.
+
+models:
+  - name: slvr_customers
+    description: "Khách hàng đã làm giàu thông tin: ghép `brnz_customer` với `brnz_person`, phân loại cá nhân / cửa hàng."
+    columns:
+      - name: customer_id
+        description: "Khóa chính của khách hàng."
+        data_tests:
+          - not_null
+          - unique
+      - name: person_id
+        description: "Người tương ứng (NULL với cửa hàng không có người liên hệ)."
+      - name: store_id
+        description: "Cửa hàng (NULL với khách cá nhân)."
+      - name: territory_id
+        description: "Vùng bán hàng."
+      - name: account_number
+        description: "Mã tài khoản khách hàng."
+      - name: first_name
+        description: "Tên (NULL với cửa hàng)."
+      - name: last_name
+        description: "Họ (NULL với cửa hàng)."
+      - name: full_name
+        description: "Tên hiển thị: 'Tên Họ' với người, 'Store #<id>' với cửa hàng không có người liên hệ."
+        data_tests:
+          - not_null
+      - name: customer_type
+        description: "Individual = khách cá nhân, Store = khách là cửa hàng (kể cả người liên hệ của cửa hàng)."
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ["Individual", "Store"]
+      - name: email_promotion
+        description: "Mức đồng ý nhận email quảng cáo (0 nếu không có thông tin)."
+      - name: modified_at
+        description: "{{ doc('modified_at') }} Lấy giá trị mới hơn giữa khách hàng và người."
+
+  - name: slvr_products
+    description: "Sản phẩm đã làm giàu thông tin: ghép `brnz_product` với danh mục con và danh mục lớn, thêm phân khúc giá."
+    columns:
+      - name: product_id
+        description: "Khóa chính của sản phẩm."
+        data_tests:
+          - not_null
+          - unique
+      - name: product_name
+        description: "Tên sản phẩm."
+        data_tests:
+          - not_null
+      - name: product_number
+        description: "Mã sản phẩm."
+      - name: color
+        description: "Màu sắc ('N/A' nếu không có)."
+      - name: size
+        description: "Kích cỡ ('N/A' nếu không có)."
+      - name: weight
+        description: "Khối lượng."
+      - name: weight_unit
+        description: "Đơn vị khối lượng."
+      - name: standard_cost
+        description: "Giá vốn chuẩn."
+      - name: list_price
+        description: "Giá niêm yết."
+      - name: product_line
+        description: "Dòng sản phẩm (R, M, T, S)."
+      - name: product_class
+        description: "Phân hạng (H, M, L)."
+      - name: product_style
+        description: "Kiểu dáng (W, M, U)."
+      - name: make_flag
+        description: "1 = tự sản xuất."
+      - name: finished_goods_flag
+        description: "1 = thành phẩm bán được."
+      - name: subcategory_id
+        description: "Danh mục con."
+      - name: subcategory_name
+        description: "Tên danh mục con ('Uncategorized' nếu không có)."
+        data_tests:
+          - not_null
+      - name: category_id
+        description: "Danh mục lớn."
+      - name: category_name
+        description: "Tên danh mục lớn ('Uncategorized' nếu không có)."
+        data_tests:
+          - not_null
+      - name: price_tier
+        description: "Phân khúc giá theo list_price: Not for sale (0), Budget (< 100), Mid-range (< 1000), Premium."
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ["Not for sale", "Budget", "Mid-range", "Premium"]
+      - name: sell_start_date
+        description: "Ngày bắt đầu bán."
+      - name: sell_end_date
+        description: "Ngày ngừng bán."
+      - name: is_active
+        description: "1 = đang bán (chưa có ngày ngừng bán/ngừng sản xuất), 0 = đã ngừng."
+        data_tests:
+          - accepted_values:
+              values: [0, 1]
+              quote: false
+      - name: modified_at
+        description: "{{ doc('modified_at') }}"
+
+  - name: slvr_sales_orders
+    description: >
+      Dòng đơn hàng đầy đủ: ghép chi tiết với header đơn hàng. Mức chi tiết: 1 dòng / 1 sản phẩm trong đơn.
+      Materialized **incremental** (delete+insert theo `order_detail_id`) để lần chạy sau chỉ xử lý dữ liệu mới.
+    config:
+      tags: ["incremental"]
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - sales_order_id
+            - order_detail_id
+    columns:
+      - name: sales_order_id
+        description: "Đơn hàng."
+        data_tests:
+          - not_null
+      - name: order_detail_id
+        description: "Khóa chính (dòng đơn hàng)."
+        data_tests:
+          - not_null
+          - unique
+      - name: sales_order_number
+        description: "Mã đơn hàng hiển thị."
+      - name: order_date
+        description: "Ngày đặt hàng."
+        data_tests:
+          - not_null
+          - valid_date_range:
+              min_date: "2011-01-01"
+      - name: due_date
+        description: "Ngày hẹn giao."
+      - name: ship_date
+        description: "Ngày giao thực tế."
+        data_tests:
+          - date_not_before:
+              compare_column: order_date
+      - name: order_status
+        description: "{{ doc('order_status') }}"
+      - name: order_status_name
+        description: "Tên trạng thái đơn hàng."
+        data_tests:
+          - accepted_values:
+              values: ["In process", "Approved", "Backordered", "Rejected", "Shipped", "Cancelled"]
+      - name: order_channel
+        description: "Kênh bán: Online hoặc Offline (qua nhân viên bán hàng)."
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ["Online", "Offline"]
+      - name: customer_id
+        description: "Khách hàng."
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('slvr_customers')
+              field: customer_id
+      - name: sales_person_id
+        description: "Nhân viên bán hàng."
+      - name: territory_id
+        description: "Vùng bán hàng."
+      - name: product_id
+        description: "Sản phẩm."
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('slvr_products')
+              field: product_id
+      - name: special_offer_id
+        description: "Chương trình khuyến mãi."
+      - name: order_qty
+        description: "Số lượng."
+        data_tests:
+          - positive_value
+      - name: unit_price
+        description: "Đơn giá."
+      - name: unit_price_discount
+        description: "Tỉ lệ giảm giá."
+      - name: line_total
+        description: "Thành tiền sau giảm giá (doanh thu của dòng)."
+        data_tests:
+          - positive_value
+      - name: gross_amount
+        description: "Thành tiền trước giảm giá = unit_price × order_qty."
+      - name: discount_amount
+        description: "Số tiền được giảm = gross_amount − line_total."
+        data_tests:
+          - positive_value:
+              allow_zero: true
+      - name: has_discount
+        description: "1 = dòng có giảm giá."
+        data_tests:
+          - accepted_values:
+              values: [0, 1]
+              quote: false
+      - name: days_to_ship
+        description: "Số ngày từ lúc đặt tới lúc giao."
+        data_tests:
+          - positive_value:
+              allow_zero: true
+      - name: modified_at
+        description: "{{ doc('modified_at') }} Lấy giá trị mới hơn giữa header và dòng chi tiết; dùng cho incremental."

@@ -1,0 +1,314 @@
+version: 2
+
+# Tầng BRONZE: 1 view / 1 bảng nguồn. Đổi tên cột sang snake_case, ép kiểu, trim chuỗi.
+# Test ở tầng này bảo vệ "hợp đồng dữ liệu" với hệ thống nguồn: khóa, khóa ngoại, miền giá trị.
+
+models:
+  - name: brnz_sales_order_header
+    description: "Header đơn hàng, 1-1 với `Sales.SalesOrderHeader`."
+    columns:
+      - name: sales_order_id
+        description: "Khóa chính của đơn hàng."
+        data_tests:
+          - not_null
+          - unique
+      - name: revision_number
+        description: "Số lần đơn hàng được chỉnh sửa."
+      - name: order_date
+        description: "Ngày đặt hàng."
+        data_tests:
+          - not_null
+          - valid_date_range:
+              min_date: "2011-01-01"
+      - name: due_date
+        description: "Ngày hẹn giao hàng. Không được trước ngày đặt."
+        data_tests:
+          - date_not_before:
+              compare_column: order_date
+      - name: ship_date
+        description: "Ngày giao hàng thực tế (NULL nếu chưa giao). Không được trước ngày đặt."
+        data_tests:
+          - date_not_before:
+              compare_column: order_date
+      - name: order_status
+        description: "{{ doc('order_status') }}"
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: [1, 2, 3, 4, 5, 6]
+              quote: false
+      - name: online_order_flag
+        description: "1 = đặt online, 0 = đặt qua nhân viên bán hàng."
+        data_tests:
+          - accepted_values:
+              values: [0, 1]
+              quote: false
+      - name: sales_order_number
+        description: "Mã đơn hàng hiển thị (vd. SO43659)."
+        data_tests:
+          - not_null
+          - unique
+      - name: purchase_order_number
+        description: "Mã đơn mua hàng của khách (NULL nếu không có)."
+      - name: customer_id
+        description: "Khách hàng đặt đơn."
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('brnz_customer')
+              field: customer_id
+      - name: sales_person_id
+        description: "Nhân viên bán hàng (NULL với đơn online)."
+      - name: territory_id
+        description: "Vùng bán hàng."
+      - name: sub_total
+        description: "Tổng tiền hàng trước thuế và phí vận chuyển."
+        data_tests:
+          - positive_value:
+              allow_zero: true
+      - name: tax_amount
+        description: "Tiền thuế."
+      - name: freight
+        description: "Phí vận chuyển."
+      - name: total_due
+        description: "Tổng tiền phải trả = sub_total + tax_amount + freight."
+        data_tests:
+          - positive_value:
+              allow_zero: true
+      - name: modified_at
+        description: "{{ doc('modified_at') }}"
+
+  - name: brnz_sales_order_detail
+    description: "Dòng chi tiết đơn hàng, 1-1 với `Sales.SalesOrderDetail`."
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - sales_order_id
+            - order_detail_id
+    columns:
+      - name: sales_order_id
+        description: "Đơn hàng chứa dòng này."
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('brnz_sales_order_header')
+              field: sales_order_id
+      - name: order_detail_id
+        description: "Khóa chính của dòng đơn hàng."
+        data_tests:
+          - not_null
+          - unique
+      - name: carrier_tracking_number
+        description: "Mã vận đơn của đơn vị vận chuyển (NULL nếu không có)."
+      - name: order_qty
+        description: "Số lượng đặt."
+        data_tests:
+          - positive_value
+      - name: product_id
+        description: "Sản phẩm được đặt."
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('brnz_product')
+              field: product_id
+      - name: special_offer_id
+        description: "Chương trình khuyến mãi áp dụng."
+      - name: unit_price
+        description: "Đơn giá bán."
+        data_tests:
+          - positive_value
+      - name: unit_price_discount
+        description: "Tỉ lệ giảm giá trên đơn giá (0 = không giảm)."
+        data_tests:
+          - positive_value:
+              allow_zero: true
+      - name: line_total
+        description: "Thành tiền = unit_price × (1 − unit_price_discount) × order_qty."
+        data_tests:
+          - positive_value
+      - name: modified_at
+        description: "{{ doc('modified_at') }}"
+
+  - name: brnz_customer
+    description: "Khách hàng, 1-1 với `Sales.Customer`."
+    columns:
+      - name: customer_id
+        description: "Khóa chính của khách hàng."
+        data_tests:
+          - not_null
+          - unique
+      - name: person_id
+        description: "Người tương ứng (khách cá nhân hoặc người liên hệ của cửa hàng). NULL với cửa hàng không có người liên hệ."
+        data_tests:
+          - relationships:
+              to: ref('brnz_person')
+              field: person_id
+      - name: store_id
+        description: "Cửa hàng (NULL với khách cá nhân)."
+      - name: territory_id
+        description: "Vùng bán hàng của khách."
+      - name: account_number
+        description: "Mã tài khoản khách hàng (vd. AW00000001)."
+        data_tests:
+          - not_null
+          - unique
+      - name: modified_at
+        description: "{{ doc('modified_at') }}"
+
+  - name: brnz_person
+    description: "Người, 1-1 với `Person.Person` (đã bỏ các cột XML)."
+    columns:
+      - name: person_id
+        description: "Khóa chính (BusinessEntityID)."
+        data_tests:
+          - not_null
+          - unique
+      - name: person_type
+        description: "Loại người: SC = liên hệ cửa hàng, IN = khách cá nhân, SP = nhân viên bán hàng, EM = nhân viên, VC = liên hệ nhà cung cấp, GC = liên hệ chung."
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ["SC", "IN", "SP", "EM", "VC", "GC"]
+      - name: title
+        description: "Danh xưng (Mr., Ms.)."
+      - name: first_name
+        description: "Tên."
+        data_tests:
+          - not_null
+      - name: middle_name
+        description: "Tên đệm."
+      - name: last_name
+        description: "Họ."
+        data_tests:
+          - not_null
+      - name: suffix
+        description: "Hậu tố tên (Jr., Sr.)."
+      - name: email_promotion
+        description: "Mức đồng ý nhận email quảng cáo: 0 = không, 1 = từ AdventureWorks, 2 = từ AdventureWorks và đối tác."
+        data_tests:
+          - accepted_values:
+              values: [0, 1, 2]
+              quote: false
+      - name: modified_at
+        description: "{{ doc('modified_at') }}"
+
+  - name: brnz_product
+    description: "Sản phẩm, 1-1 với `Production.Product`."
+    columns:
+      - name: product_id
+        description: "Khóa chính của sản phẩm."
+        data_tests:
+          - not_null
+          - unique
+      - name: product_name
+        description: "Tên sản phẩm."
+        data_tests:
+          - not_null
+          - unique
+      - name: product_number
+        description: "Mã sản phẩm."
+        data_tests:
+          - not_null
+          - unique
+      - name: make_flag
+        description: "1 = tự sản xuất, 0 = mua ngoài."
+      - name: finished_goods_flag
+        description: "1 = thành phẩm bán được, 0 = linh kiện."
+      - name: color
+        description: "Màu sắc (NULL nếu không có)."
+      - name: safety_stock_level
+        description: "Mức tồn kho tối thiểu."
+      - name: reorder_point
+        description: "Mức tồn kho kích hoạt đặt hàng lại."
+      - name: standard_cost
+        description: "Giá vốn chuẩn."
+        data_tests:
+          - positive_value:
+              allow_zero: true
+      - name: list_price
+        description: "Giá niêm yết (0 = không bán)."
+        data_tests:
+          - positive_value:
+              allow_zero: true
+      - name: size
+        description: "Kích cỡ."
+      - name: weight
+        description: "Khối lượng."
+      - name: weight_unit
+        description: "Đơn vị khối lượng (LB, G)."
+      - name: days_to_manufacture
+        description: "Số ngày cần để sản xuất."
+      - name: product_line
+        description: "Dòng sản phẩm: R = Road, M = Mountain, T = Touring, S = Standard."
+        data_tests:
+          - accepted_values:
+              values: ["R", "M", "T", "S"]
+      - name: product_class
+        description: "Phân hạng: H = cao, M = trung bình, L = thấp."
+        data_tests:
+          - accepted_values:
+              values: ["H", "M", "L"]
+      - name: product_style
+        description: "Kiểu dáng: W = nữ, M = nam, U = unisex."
+        data_tests:
+          - accepted_values:
+              values: ["W", "M", "U"]
+      - name: product_subcategory_id
+        description: "Danh mục con (NULL với linh kiện)."
+        data_tests:
+          - relationships:
+              to: ref('brnz_product_subcategory')
+              field: product_subcategory_id
+      - name: product_model_id
+        description: "Mẫu sản phẩm."
+      - name: sell_start_date
+        description: "Ngày bắt đầu bán."
+        data_tests:
+          - not_null
+      - name: sell_end_date
+        description: "Ngày ngừng bán (NULL nếu còn bán). Không được trước ngày bắt đầu bán."
+        data_tests:
+          - date_not_before:
+              compare_column: sell_start_date
+      - name: discontinued_date
+        description: "Ngày ngừng sản xuất."
+      - name: modified_at
+        description: "{{ doc('modified_at') }}"
+
+  - name: brnz_product_subcategory
+    description: "Danh mục con, 1-1 với `Production.ProductSubcategory`."
+    columns:
+      - name: product_subcategory_id
+        description: "Khóa chính của danh mục con."
+        data_tests:
+          - not_null
+          - unique
+      - name: product_category_id
+        description: "Danh mục lớn chứa danh mục con này."
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('brnz_product_category')
+              field: product_category_id
+      - name: subcategory_name
+        description: "Tên danh mục con."
+        data_tests:
+          - not_null
+      - name: modified_at
+        description: "{{ doc('modified_at') }}"
+
+  - name: brnz_product_category
+    description: "Danh mục lớn, 1-1 với `Production.ProductCategory`."
+    columns:
+      - name: product_category_id
+        description: "Khóa chính của danh mục."
+        data_tests:
+          - not_null
+          - unique
+      - name: category_name
+        description: "Tên danh mục (Bikes, Components, Clothing, Accessories)."
+        data_tests:
+          - not_null
+          - unique
+      - name: modified_at
+        description: "{{ doc('modified_at') }}"

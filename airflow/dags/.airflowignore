@@ -1,0 +1,2 @@
+# Thư mục chỉ chứa code dùng chung (không có DAG) → Airflow không cần quét tìm DAG ở đây
+dataops_utils/

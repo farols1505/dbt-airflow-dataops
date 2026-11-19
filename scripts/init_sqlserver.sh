@@ -15,7 +15,7 @@ trap 'echo "❌ Lỗi ở dòng $LINENO (mã thoát $?). Xem log: docker compose
 cd "$(dirname "$0")/.."
 
 # Đọc biến từ .env (nếu có). Trên GitHub Actions biến có thể đến từ Secrets.
-if [ -f .env ]; then
+if [[ -f .env ]]; then
   set -a
   # shellcheck disable=SC1091
   . ./.env
@@ -32,9 +32,10 @@ MAX_TRIES=30   # 30 lần x 5 giây = tối đa 150 giây
 # "| cat": Docker cài bằng snap không ghi được output thẳng vào file (vd. khi chạy
 # script với "> log.txt") → luôn đi qua pipe; pipefail giữ nguyên mã thoát của sqlcmd.
 run_sql() {
+  local query="$1"
   docker compose exec -T sqlserver bash -c \
     '/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -b -h -1 -W -Q "$1"' \
-    _ "$1" | cat
+    _ "$query" | cat
 }
 
 echo "⏳ [1/3] Chờ SQL Server sẵn sàng..."
@@ -43,7 +44,7 @@ for i in $(seq 1 "$MAX_TRIES"); do
     echo "   ✅ SQL Server đã sẵn sàng"
     break
   fi
-  if [ "$i" -eq "$MAX_TRIES" ]; then
+  if [[ "$i" -eq "$MAX_TRIES" ]]; then
     echo "   ❌ SQL Server không phản hồi. Xem log: docker compose logs sqlserver"
     exit 1
   fi
@@ -52,7 +53,7 @@ done
 
 echo "⏳ [2/3] Kiểm tra database $DB_NAME..."
 db_count=$(run_sql "SET NOCOUNT ON; SELECT COUNT(*) FROM sys.databases WHERE name = '$DB_NAME'" | tr -d '[:space:]')
-if [ "$db_count" = "0" ]; then
+if [[ "$db_count" == "0" ]]; then
   echo "   Chưa có → đang restore từ /tmp/AdventureWorks2014.bak (khoảng 30 giây)..."
   # Ngay sau khi SQL Server vừa khởi động, RESTORE đôi khi lỗi tạm thời → thử lại tối đa 3 lần
   for attempt in 1 2 3; do
@@ -61,7 +62,7 @@ if [ "$db_count" = "0" ]; then
                 MOVE 'AdventureWorks2014_Log' TO '/var/opt/mssql/data/AdventureWorks2014_log.ldf'"; then
       break
     fi
-    if [ "$attempt" -eq 3 ]; then
+    if [[ "$attempt" -eq 3 ]]; then
       echo "   ❌ Restore thất bại sau 3 lần. Xem log: docker compose logs sqlserver"
       exit 1
     fi
@@ -69,7 +70,7 @@ if [ "$db_count" = "0" ]; then
     sleep 10
   done
   online=$(run_sql "SET NOCOUNT ON; SELECT COUNT(*) FROM sys.databases WHERE name = '$DB_NAME' AND state_desc = 'ONLINE'" | tr -d '[:space:]')
-  if [ "$online" != "1" ]; then
+  if [[ "$online" != "1" ]]; then
     echo "   ❌ Đã chạy RESTORE nhưng database $DB_NAME chưa ở trạng thái ONLINE"
     exit 1
   fi

@@ -34,7 +34,12 @@ def summarize(path: str) -> tuple[str, list[str]]:
     warned = counts["warn"]
     skipped = counts["skipped"]
     elapsed = data.get("elapsed_time", 0.0)
-    icon = "❌" if failed else ("⚠️" if warned else "✅")
+    if failed:
+        icon = "❌"
+    elif warned:
+        icon = "⚠️"
+    else:
+        icon = "✅"
 
     row = (
         f"| {icon} `{label}` | {ok} | {warned} | {failed} | {skipped} "

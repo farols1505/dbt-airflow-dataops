@@ -28,7 +28,7 @@ POSTGRES_PASSWORD="$(gen_password)"
 AIRFLOW_ADMIN_PASSWORD="$(gen_password)"
 FERNET_KEY="$(python3 -c 'import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())')"
 
-if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
+if [[ "${GITHUB_ACTIONS:-}" == "true" ]]; then
   for secret in "$SA_PASSWORD" "$DBT_PASSWORD" "$POSTGRES_PASSWORD" "$AIRFLOW_ADMIN_PASSWORD" "$FERNET_KEY"; do
     echo "::add-mask::$secret"
   done

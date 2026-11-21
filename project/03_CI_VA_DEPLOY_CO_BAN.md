@@ -71,7 +71,7 @@
 
 ## Bước 0 — Hoàn tất PR #1 và lưu các file hướng dẫn
 
-Pull Request #1 (`chore/solo-setup`, chuyển repo sang chế độ làm một mình) vẫn đang mở vì nhánh còn yêu cầu 1 người duyệt.
+Pull Request #1 (đơn giản hóa bảo vệ nhánh, bỏ `CODEOWNERS`) vẫn đang mở vì nhánh còn yêu cầu 1 người duyệt.
 
 ### 0.1. Sửa bảo vệ nhánh (0 người duyệt)
 
@@ -97,10 +97,10 @@ for b in main develop; do gh api "repos/{owner}/{repo}/branches/$b/protection" -
 
 ### 0.2. Thêm các file hướng dẫn vào PR #1 rồi merge
 
-Thư mục dự án đang ở nhánh `chore/solo-setup` (nhánh của PR #1).
+Thư mục dự án đang ở nhánh của PR #1.
 
 ```bash
-git branch --show-current                     # chore/solo-setup
+git branch --show-current                     # nhánh của PR #1
 git add project/ .env.example
 git status --short project/ .env.example      # chỉ thấy file hướng dẫn + .env.example (KHÔNG có .env)
 git commit -m "docs: add step-by-step guides 03 to 10"
@@ -110,7 +110,7 @@ git push
 gh pr merge 1 --squash --delete-branch
 git switch develop
 git pull
-git log --oneline -3                          # commit mới nhất: "chore: adapt repository for solo development"
+git log --oneline -3                          # commit mới nhất là commit của PR #1
 ```
 
 > 📝 `.env.example` đổi 2 chỗ: thêm biến `GRAFANA_ADMIN_PASSWORD` (dùng ở file 09) và sửa chú thích webhook. File `.env` của bạn không bị ảnh hưởng.
@@ -230,7 +230,7 @@ Mong đợi: danh sách các bảng/view trong `dev_bronze`, `dev_silver`, `dev_
 
 ## Bước 6 — README
 
-`README.md` (thay cho `1. README.md` của giáo viên) gồm: badges trạng thái CI/Deploy/Docs, sơ đồ kiến trúc, bảng đối chiếu yêu cầu → cách đáp ứng, cài đặt nhanh, cách chạy pipeline, CI/CD, giám sát, cấu trúc thư mục, xử lý sự cố, mục lục tài liệu, **tác giả (làm một mình) và khai báo sử dụng AI** (đề bài yêu cầu).
+`README.md` (thay cho `1. README.md` của giáo viên) gồm: badges trạng thái CI/Deploy/Docs, sơ đồ kiến trúc, bảng đối chiếu yêu cầu → cách đáp ứng, cài đặt nhanh, cách chạy pipeline, CI/CD, giám sát, cấu trúc thư mục, xử lý sự cố, mục lục tài liệu, **khai báo sử dụng AI** (đề bài yêu cầu).
 
 Đủ 4 mục README của MVP: *tổng quan, cài đặt, cách chạy, troubleshooting cơ bản*.
 

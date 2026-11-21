@@ -22,7 +22,7 @@ Pipeline dữ liệu tự động theo tinh thần **DataOps**: biến đổi d�
 - [Cấu trúc thư mục](#cấu-trúc-thư-mục)
 - [Xử lý sự cố](#xử-lý-sự-cố)
 - [Tài liệu](#tài-liệu)
-- [Tác giả và khai báo sử dụng AI](#tác-giả-và-khai-báo-sử-dụng-ai)
+- [Khai báo sử dụng AI](#khai-báo-sử-dụng-ai)
 
 ---
 
@@ -194,7 +194,6 @@ Danh sách đầy đủ: [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md).
 
 ---
 
-## Tác giả và khai báo sử dụng AI
+## Khai báo sử dụng AI
 
-- **Thực hiện:** [@farols1505](https://github.com/farols1505), làm một mình toàn bộ dự án (đề bài thiết kế cho nhóm 3 người).
-- **Sử dụng AI:** dự án có dùng trợ lý AI (Claude) để tham khảo, sinh mã nguồn ban đầu, gỡ lỗi và soạn tài liệu, theo quy định *"Using AI tools for learning and debugging (with disclosure)"* của đề bài. Mọi mã nguồn đã được tác giả đọc, chạy thử và có thể giải thích.
+- **Sử dụng AI:** dự án có dùng trợ lý AI (Claude) để tham khảo, sinh mã nguồn ban đầu, gỡ lỗi và soạn tài liệu, theo quy định *"Using AI tools for learning and debugging (with disclosure)"* của đề bài. Mọi mã nguồn đã được nhóm đọc, chạy thử và có thể giải thích.

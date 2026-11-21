@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Trạng thái** | ✅ **Đã làm xong** (làm một lần cho repo). Nếu bạn đã làm theo bản cũ dành cho nhóm 3 người → làm [Bước 12](#bước-12--chuyển-repo-sang-chế-độ-làm-một-mình) để chuyển sang chế độ làm một mình |
+| **Trạng thái** | ✅ **Đã làm xong** (làm một lần cho repo). Nếu bạn đã làm theo bản cũ (có `CODEOWNERS`, yêu cầu 1 người duyệt) → làm [Bước 12](#bước-12--đơn-giản-hóa-bảo-vệ-nhánh-và-bỏ-codeowners) |
 | **Khi nào** | Ngày 1–2 |
 | **Thời gian** | 4–6 giờ |
 | **Điều kiện** | Đã xong [`01_CHUAN_BI_MOI_TRUONG.md`](01_CHUAN_BI_MOI_TRUONG.md): 5 container chạy, `dbt run` và `dbt test` pass |
@@ -26,7 +26,7 @@
 - [Bước 9 — Mẫu Pull Request](#bước-9--mẫu-pull-request)
 - [Bước 10 — Tạo repo GitHub và push](#bước-10--tạo-repo-github-và-push)
 - [Bước 11 — Cấu hình repo và bảo vệ nhánh](#bước-11--cấu-hình-repo-và-bảo-vệ-nhánh)
-- [Bước 12 — Chuyển repo sang chế độ làm một mình](#bước-12--chuyển-repo-sang-chế-độ-làm-một-mình)
+- [Bước 12 — Đơn giản hóa bảo vệ nhánh và bỏ CODEOWNERS](#bước-12--đơn-giản-hóa-bảo-vệ-nhánh-và-bỏ-codeowners)
 - [Bước 13 — Theo dõi công việc bằng Issues (tùy chọn)](#bước-13--theo-dõi-công-việc-bằng-issues-tùy-chọn)
 - [Quy trình làm việc hằng ngày](#quy-trình-làm-việc-hằng-ngày)
 - [Checklist hoàn thành](#checklist-hoàn-thành)
@@ -1087,7 +1087,7 @@ gh repo edit \
 
 ### 11.2. Bảo vệ nhánh `main` và `develop`
 
-Làm một mình thì **không thể** yêu cầu "1 người duyệt", vì GitHub không cho tự duyệt Pull Request của chính mình. Cấu hình dưới đây vẫn **bắt buộc mọi thay đổi đi qua Pull Request** nhưng cần **0 người duyệt**. Ở file `03`, ta bật thêm **bắt buộc CI xanh**: CI đóng vai người review.
+Cấu hình dưới đây **bắt buộc mọi thay đổi đi qua Pull Request** nhưng cần **0 người duyệt** (GitHub không cho tác giả tự duyệt Pull Request của chính mình). Ở file `03`, ta bật thêm **bắt buộc CI xanh**: CI đóng vai người review.
 
 ```bash
 for BRANCH in main develop; do
@@ -1138,9 +1138,9 @@ git reset --hard origin/develop   # xóa commit thử
 
 ---
 
-## Bước 12 — Chuyển repo sang chế độ làm một mình
+## Bước 12 — Đơn giản hóa bảo vệ nhánh và bỏ CODEOWNERS
 
-> **Chỉ cần làm nếu** bạn đã làm theo bản cũ của file này (bản dành cho nhóm 3 người), tức là repo đang có `.github/CODEOWNERS` và nhánh yêu cầu 1 người duyệt. Đây cũng là **Pull Request đầu tiên** của dự án, dùng để làm quen quy trình.
+> **Chỉ cần làm nếu** bạn đã làm theo bản cũ của file này, tức là repo đang có `.github/CODEOWNERS` và nhánh yêu cầu 1 người duyệt. Đây cũng là **Pull Request đầu tiên** của dự án, dùng để làm quen quy trình.
 
 ### 12.1. Sửa bảo vệ nhánh
 
@@ -1151,14 +1151,14 @@ Chạy khối lệnh ở [Bước 11.2](#112-bảo-vệ-nhánh-main-và-develop)
 ```bash
 git switch develop
 git pull
-git switch -c chore/solo-setup
+git switch -c chore/review-settings
 
-git rm .github/CODEOWNERS             # không còn ai để tự động gán review
+git rm .github/CODEOWNERS             # bỏ tự động gán người review
 git add .env.example project/         # file hướng dẫn mới + chú thích .env.example đã sửa
 git status                            # KHÔNG được thấy .env
-git commit -m "chore: adapt repository for solo development"
+git commit -m "chore: simplify branch protection and remove CODEOWNERS"
 
-git push -u origin chore/solo-setup
+git push -u origin chore/review-settings
 gh pr create --base develop --fill
 ```
 
@@ -1170,7 +1170,7 @@ Mở PR trên web (`gh pr view --web`): mẫu PR tự hiện. Đánh dấu các 
 gh pr merge --squash --delete-branch
 git switch develop
 git pull
-git log --oneline -3                  # commit "chore: adapt repository for solo development" đã ở develop
+git log --oneline -3                  # commit của PR #1 đã ở develop
 ```
 
 > Nếu merge bị từ chối với `Review required` → bảo vệ nhánh vẫn đang yêu cầu 1 người duyệt → làm lại 12.1.

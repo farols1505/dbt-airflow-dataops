@@ -95,7 +95,7 @@ EOF
 | Thiết lập | Ý nghĩa |
 |---|---|
 | `reviewers` = bạn | Job production **dừng chờ** tới khi bạn bấm duyệt |
-| `prevent_self_review: false` | Cho phép tự duyệt lần deploy do chính mình kích hoạt (làm một mình) |
+| `prevent_self_review: false` | Cho phép tự duyệt lần deploy do chính mình kích hoạt |
 | `protected_branches: true` | Chỉ `main`/`develop` (đang được bảo vệ) mới deploy được vào môi trường này |
 
 ### 2.3. Kiểm tra

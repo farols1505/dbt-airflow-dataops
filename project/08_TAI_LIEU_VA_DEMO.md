@@ -200,7 +200,7 @@ Chụp lại và lưu (không cần commit): PR với 4 check xanh, Summary củ
 - [ ] Nội dung: tổng quan, kiến trúc, quyết định kỹ thuật, khó khăn & cách giải, demo pipeline, bài học
 
 **Liêm chính học thuật**
-- [ ] README ghi rõ làm một mình + **khai báo sử dụng AI**
+- [ ] README có **khai báo sử dụng AI**
 - [ ] Hiểu và giải thích được mọi file đã nộp
 
 ---

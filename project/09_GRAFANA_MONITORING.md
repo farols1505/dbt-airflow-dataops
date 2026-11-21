@@ -153,7 +153,7 @@ gh pr checks --watch && gh pr merge --squash --delete-branch && git switch devel
 
 | Hiện tượng | Nguyên nhân | Cách sửa |
 |---|---|---|
-| `service "grafana" depends on undefined service "postgres"` | Chạy file monitoring một mình | Luôn kèm `-f docker-compose.yml -f docker-compose.monitoring.yml` |
+| `service "grafana" depends on undefined service "postgres"` | Chạy riêng file monitoring | Luôn kèm `-f docker-compose.yml -f docker-compose.monitoring.yml` |
 | `required variable POSTGRES_PASSWORD is missing` | Thiếu `.env` | Chạy ở thư mục dự án có `.env` |
 | Không vào được http://localhost:3000 | Container chưa chạy / cổng 3000 bị chiếm | `docker compose ... ps grafana`, `logs grafana`; tắt chương trình dùng cổng 3000 |
 | Datasource Postgres *Test* lỗi `password authentication failed` | `POSTGRES_PASSWORD` trong `.env` khác mật khẩu volume Postgres | Dùng đúng mật khẩu đã dùng khi tạo volume (file 02, Bước 7.2) |

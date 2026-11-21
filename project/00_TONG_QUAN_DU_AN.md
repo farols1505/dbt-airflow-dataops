@@ -1,4 +1,4 @@
-# 00 — TỔNG QUAN DỰ ÁN DATAOPS (LÀM MỘT MÌNH)
+# 00 — TỔNG QUAN DỰ ÁN DATAOPS
 ## dbt + Apache Airflow + SQL Server + GitHub Actions
 
 > File này trả lời 3 câu hỏi: **(1) Phải làm những gì? (2) Làm theo cách nào? (3) Làm theo thứ tự nào?**
@@ -34,7 +34,7 @@ Xây dựng một **pipeline dữ liệu tự động** theo tinh thần **DataO
 - **Tự động hóa:** **GitHub Actions**: CI cho mọi Pull Request; CD tự deploy qua **dev → staging → production** khi merge; rollback.
 - **Giám sát:** Grafana + Discord; lineage tương tác trên GitHub Pages.
 
-**Đề bài:** 3 tuần · 100 điểm · **qua môn = 60 điểm (MVP)** · bonus tối đa +15. Đề bài dành cho nhóm 3 người; ở đây **một người làm toàn bộ**.
+**Đề bài:** 3 tuần · 100 điểm · **qua môn = 60 điểm (MVP)** · bonus tối đa +15.
 
 ---
 
@@ -114,7 +114,7 @@ Chi tiết: [`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md).
 | D4 | Bí mật | `.env` (không commit) + GitHub Secrets; biến `DBT_ENV_SECRET_*` được dbt tự che trong log; CI sinh mật khẩu ngẫu nhiên |
 | D5 | Thông báo | Discord webhook cho cả Airflow và GitHub Actions |
 | D6 | Rollback | Tag `prod-YYYYMMDD-HHMM` mỗi lần deploy production; backup silver/gold trước deploy → lỗi thì restore tự động; workflow rollback thủ công theo tag |
-| D7 | Bảo vệ nhánh | Bắt buộc PR, **0 người duyệt** (làm một mình), **bắt buộc 4 check CI**; production cần duyệt qua GitHub Environments |
+| D7 | Bảo vệ nhánh | Bắt buộc PR, **0 người duyệt**, **bắt buộc 4 check CI**; production cần duyệt qua GitHub Environments |
 | D8 | Lint | black + flake8 (Python), sqlfluff tsql (SQL, chỉ `dbt/models`); cùng cấu hình ở pre-commit và CI |
 | D9 | Chọn model theo tầng | `--select path:models/<tầng>` (không phụ thuộc tên model) |
 | D10 | Biến môi trường container | Khai báo một lần trong `docker-compose.yml` (file 02) |
@@ -246,7 +246,7 @@ Checklist nộp bài đầy đủ: [`08_TAI_LIEU_VA_DEMO.md`](08_TAI_LIEU_VA_DEM
 
 | Rủi ro | Phòng tránh |
 |---|---|
-| Không đủ thời gian (một người làm việc của ba người) | Đi đúng thứ tự mốc; MVP xong tuần 1 |
+| Không đủ thời gian | Đi đúng thứ tự mốc; MVP xong tuần 1 |
 | Lỡ commit file của bước sau | Luôn `git add <đường dẫn>`; kiểm tra `git status` trước khi commit |
 | Workflow lỗi trên GitHub (các bước đã chạy thử trên stack Docker riêng, nhưng chưa chạy trên chính GitHub Actions) | Đọc **Summary** + log; mục *Lỗi thường gặp* của từng file; sửa qua nhánh `fix/...` |
 | Lộ mật khẩu/webhook (repo public) | `.env` bị Git bỏ qua; pre-commit `detect-private-key`; chỉ dùng GitHub Secrets |
